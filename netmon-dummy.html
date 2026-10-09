@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetMonitor Pastel — Dummy</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+  body{margin:0;background:#f0f9ff;color:#0c4a6e}
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:260px;background:#ffffff;border-right:2px solid #bae6fd;padding:20px;display:flex;flex-direction:column;gap:14px}
+  .logo{background:linear-gradient(135deg,#bae6fd,#e0f2fe);border-radius:16px;padding:14px;text-align:center;font-weight:800;font-size:20px;color:#0369a1}
+  .label{font-size:11px;font-weight:700;letter-spacing:.08em;color:#0284c7;text-transform:uppercase;margin-top:8px}
+  .router-btn{border:2px solid #e0f2fe;background:#f0f9ff;border-radius:12px;padding:10px;cursor:pointer;text-align:left;font-weight:600;color:#075985}
+  .router-btn.active{background:#0284c7;color:#fff;border-color:#0284c7}
+  .iface{border-radius:10px;padding:8px 10px;background:#f8fafc;border:1px solid #e0f2fe;display:flex;justify-content:space-between;cursor:pointer;font-size:14px}
+  .iface.active{background:#bae6fd;border-color:#38bdf8;font-weight:700}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+  .dot.green{background:#22c55e}.dot.grey{background:#cbd5e1}.dot.red{background:#f87171}
+  .main{flex:1;padding:24px;display:flex;flex-direction:column;gap:18px}
+  .topbar{background:#fff;border:2px solid #bae6fd;border-radius:18px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+  .topbar h1{margin:0;font-size:22px;color:#0369a1}
+  .topbar p{margin:4px 0 0;color:#64748b;font-size:13px}
+  .status-pill{background:#e0f2fe;color:#0369a1;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:700}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .card{background:#fff;border:2px solid #bae6fd;border-radius:18px;padding:16px}
+  .card small{color:#0284c7;font-weight:700}
+  .card h2{margin:6px 0;font-size:24px}
+  .card span{font-size:12px;color:#64748b}
+  .grid2{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+  .panel{background:#fff;border:2px solid #bae6fd;border-radius:18px;padding:18px}
+  .panel h3{margin:0 0 10px;color:#0369a1}
+  .ai-box{background:linear-gradient(180deg,#e0f2fe,#fff);border:2px dashed #7dd3fc;border-radius:14px;padding:12px;font-size:14px}
+  .ai-btn{margin-top:10px;width:100%;background:#0284c7;color:#fff;border:0;border-radius:12px;padding:10px;font-weight:700;cursor:pointer}
+  .ai-btn:hover{background:#0369a1}
+  .log{background:#0c4a6e;color:#e0f2fe;border-radius:12px;padding:12px;font-family:monospace;font-size:12px;height:140px;overflow:auto;margin-top:10px}
+  @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.sidebar{width:210px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="logo">☁️ NetMonitor</div>
+    <div class="label">Pilih Router</div>
+    <div id="routers"></div>
+    <div class="label">Interface</div>
+    <div id="ifaces" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div><h1 id="title">Router A — ether1-WAN</h1><p>Dummy mode • data simulasi realtime 1 detik • pastel biru awan</p></div>
+      <div class="status-pill" id="statusPill">● ONLINE</div>
+    </div>
+    <div class="cards">
+      <div class="card"><small>DOWNLOAD</small><h2 id="dl">0 Mbps</h2><span id="dlSub">stabil</span></div>
+      <div class="card"><small>UPLOAD</small><h2 id="ul">0 Mbps</h2><span id="ulSub">stabil</span></div>
+      <div class="card"><small>LATENCY</small><h2 id="ping">0 ms</h2><span>ke 8.8.8.8</span></div>
+      <div class="card"><small>PACKET LOSS</small><h2 id="loss">0 %</h2><span id="lossSub">bagus</span></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h3>Traffic Realtime</h3><canvas id="chart" height="120"></canvas></div>
+      <div class="panel">
+        <h3>🤖 Router AI — Auto Resolve</h3>
+        <div class="ai-box" id="aiText">Halo! Saya pantau interface ini. Kalau ada kendala (loss tinggi / down), saya kasih analisa + tombol perbaikan.</div>
+        <button class="ai-btn" onclick="aiResolve()">✨ Minta AI Analisa & Perbaiki</button>
+        <div class="log" id="log">> AI standby...\n</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const routers = {
+  'Router A': [{n:'ether1-WAN',s:'up'},{n:'ether2-LAN',s:'up'},{n:'ether3-AP',s:'up'},{n:'ether4-CCTV',s:'down'},{n:'sfp1-Fiber',s:'up'}],
+  'Router B': [{n:'ether1-WAN2',s:'up'},{n:'ether2-Office',s:'up'},{n:'wlan1',s:'down'}],
+  'Router C': [{n:'ether1-Pusat',s:'up'},{n:'ether2-Cabang',s:'up'}],
+};
+let curRouter='Router A', curIface='ether1-WAN', dl=[], ul=[], labels=[];
+for(let i=0;i<30;i++){dl.push(0);ul.push(0);labels.push('');}
+function renderRouters(){
+  const el=document.getElementById('routers'); el.innerHTML='';
+  Object.keys(routers).forEach(r=>{
+    const b=document.createElement('button'); b.className='router-btn'+(r===curRouter?' active':''); b.textContent='📡 '+r;
+    b.onclick=()=>{curRouter=r; curIface=routers[r][0].n; renderRouters(); renderIfaces(); log('> pindah ke '+r);};
+    el.appendChild(b);
+  });
+}
+function renderIfaces(){
+  const el=document.getElementById('ifaces'); el.innerHTML='';
+  routers[curRouter].forEach(i=>{
+    const d=document.createElement('div'); d.className='iface'+(i.n===curIface?' active':'');
+    const dot = i.s==='up' ? (Math.random()>0.85?'red':'green') : 'grey';
+    d.innerHTML=`<span><span class="dot ${dot}"></span>${i.n}</span><span>${i.s}</span>`;
+    d.onclick=()=>{curIface=i.n; renderIfaces(); updateTitle(); log('> monitor '+curIface);};
+    el.appendChild(d);
+  });
+  updateTitle();
+}
+function updateTitle(){document.getElementById('title').textContent=`${curRouter} — ${curIface}`;}
+const ctx=document.getElementById('chart');
+const chart=new Chart(ctx,{type:'line',data:{labels,datasets:[
+  {label:'Download Mbps',data:dl,borderColor:'#0284c7',backgroundColor:'rgba(186,230,253,.5)',fill:true,tension:.4},
+  {label:'Upload Mbps',data:ul,borderColor:'#38bdf8',borderDash:[6,4],fill:false,tension:.4}
+]},options:{animation:false,plugins:{legend:{labels:{color:'#0369a1'}}},scales:{y:{beginAtZero:true,grid:{color:'#e0f2fe'}},x:{display:false}}}});
+function tick(){
+  const isDown = routers[curRouter].find(x=>x.n===curIface)?.s==='down';
+  let d = isDown?0:20+Math.random()*60, u = isDown?0:5+Math.random()*20;
+  if(Math.random()>0.93) d*=0.2; // simulasi gangguan
+  dl.push(d); dl.shift(); ul.push(u); ul.shift(); chart.update();
+  document.getElementById('dl').textContent=d.toFixed(1)+' Mbps';
+  document.getElementById('ul').textContent=u.toFixed(1)+' Mbps';
+  document.getElementById('ping').textContent=isDown?'—':(8+Math.random()*20).toFixed(0)+' ms';
+  const loss = isDown?100:(d<8?8+Math.random()*10:Math.random()*1);
+  document.getElementById('loss').textContent=loss.toFixed(1)+' %';
+  document.getElementById('statusPill').textContent=isDown?'● DOWN':'● ONLINE';
+  document.getElementById('statusPill').style.background=isDown?'#fecaca':'#e0f2fe';
+  if(loss>5) document.getElementById('aiText').textContent='⚠️ Terdeteksi anomali di '+curIface+': loss '+loss.toFixed(1)+'% / traffic drop. Klik tombol AI untuk perbaikan otomatis (dummy).';
+}
+function log(m){const el=document.getElementById('log'); el.textContent+=m+'\n'; el.scrollTop=el.scrollHeight;}
+function aiResolve(){
+  log('> AI menganalisa '+curIface+'...');
+  document.getElementById('aiText').textContent='🔍 Menganalisa... cek interface, DHCP, DNS, queue...';
+  setTimeout(()=>{
+    const steps=['✔ restart interface '+curIface,'✔ flush DNS cache','✔ reset queue tree','✔ failover cek gateway'];
+    steps.forEach((s,i)=>setTimeout(()=>log(s),400*(i+1)));
+    setTimeout(()=>{
+      document.getElementById('aiText').textContent='✅ Selesai (dummy): interface '+curIface+' sudah di-restart, traffic kembali normal. Ini simulasi — nanti disambung ke MikroTik API asli.';
+      log('> AI: resolve selesai ✅');
+    },2000);
+  },600);
+}
+renderRouters(); renderIfaces(); setInterval(tick,1000);
+</script>
+</body>
+</html>
