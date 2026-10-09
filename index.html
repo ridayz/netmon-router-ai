@@ -67,16 +67,11 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 </div>
 <div class="panel"><h3>🤖 Router AI — Full Diagnosa</h3>
 <div class="ai-box" id="aiText">Pilih interface, lalu klik Diagnosa.</div>
-<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px;background:#f0f9ff;border:2px solid #bae6fd;border-radius:10px;padding:8px 10px;cursor:pointer"><input type="checkbox" id="autoFix" checked style="width:16px;height:16px"> Auto-resolve ON — AI boleh hidupin port ke-disable sendiri</label>
+<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:10px;background:#f0f9ff;border:2px solid #bae6fd;border-radius:10px;padding:8px 10px;cursor:pointer"><input type="checkbox" id="autoFix" checked style="width:16px;height:16px"> Auto-resolve ON — aksi aman jalan sendiri atas arahan AI</label>
 <button class="ai-btn" onclick="aiDiagnose()">🔍 AI Diagnosa Sekarang</button>
-<button class="ai-btn" style="background:#059669" onclick="aiAutoEnable()">⚡ AI Hidupin Port Ini Sekarang</button>
+<button class="ai-btn" style="background:#059669" onclick="runAiPlan()">▶ Jalankan Arahan AI</button>
 <div style="display:flex;gap:8px;margin-top:8px">
-<button class="ai-btn ghost" onclick="fix('flap')">Flap Port</button>
-<button class="ai-btn ghost" onclick="fix('poe')">PoE Cycle</button>
-</div>
-<div style="display:flex;gap:8px;margin-top:8px">
-<button class="ai-btn ghost" onclick="fix('speed')">Turun ke 100M</button>
-<button class="ai-btn ghost" onclick="fix('ticket')">Buat Tiket</button>
+<button class="ai-btn ghost" onclick="log('> hint: semua aksi hanya via Diagnosa → Jalankan Arahan AI')">Semua aksi via AI</button>
 </div>
 <div class="log" id="log">> AI standby...\n</div>
 </div>
@@ -164,16 +159,27 @@ function tick(){const c=cur();const down=c.oper==='down';let d=down?0:20+Math.ra
 function log(m){const el=document.getElementById('log');el.textContent+=m+'\n';el.scrollTop=el.scrollHeight;}
 function aiDiagnose(){
 const c=cur();log('> AI diagnosa '+c.n+' ...');
-let txt='';
-if(c.fault==='putus-23m')txt=`HASIL AI — Layer 1 OPEN (confidence 92%)\n• Admin up / Oper down, TDR OPEN @ ~23m, PoE 0W, error counter 0.\n• Artinya: kabel putus di tengah ATAU ujung (kamera) tidak nyolok/mati.\n• Ranah Layer 1 → AI TIDAK bisa sambung remote.\n• Saran: 1) PoE cycle 1x (membuktikan ujung mati), 2) kirim teknisi bawa kabel+crimping, cek titik 23m dari rack.\n• Workaround: tidak ada. Failover: alihkan CCTV ke AP cadangan bila ada.`;
-else if(c.fault==='kabel-jelek')txt=`HASIL AI — Kabel jelek / crimping busuk (confidence 87%)\n• Link UP tapi CRC/FCS naik + flap 17x/hari + TDR SHORT 41m.\n• Artinya: bukan putus total, tapi kualitas tembaga buruk.\n• Bisa auto-workaround: turunkan ke 100M-Full agar stabil sementara.\n• Saran permanen: recabling / recrimping pair 3-6.`;
-else if(c.fault==='disabled-human')txt=`HASIL AI — Human error (confidence 99%)\n• Admin DOWN. Log terakhir: port di-disable manual.\n• Bisa auto-resolve 1 klik: enable port + catat aktor.\n• Saran: kunci permission disable port inti.`;
-else if(c.fault==='redaman-tinggi')txt=`HASIL AI — SFP redaman gede (confidence 90%)\n• RX -24.6 dBm (warning), redaman ~21.7 dB, CRC naik, flap 6x/hari.\n• Artinya: konektor kotor / bending / patchcord jelek / splitter kebanyakan.\n• Saran: 1) bersihkan konektor, 2) cek bending radius, 3) ganti patchcord, 4) kalau masih → ganti SFP.\n• Workaround: turunkan speed / naikkan FEC bila didukung.`;
-else if(c.fault==='no-light')txt=`HASIL AI — SFP NO LIGHT (confidence 96%)\n• RX -40 dBm + LOS alarm. Fiber tidak nyolok atau putus total.\n• Ranah Layer 1 → infoin teknisi: cek patchcord, ODP, bending.\n• Jangan flap berulang, sia-sia.`;
-else txt=`HASIL AI — Sehat (confidence 98%)\n• TDR OK, SFP normal, error counter bersih.\n• Tidak ada aksi. Lanjut pantau.`;
-document.getElementById('aiText').textContent=txt;log('> AI selesai: '+c.fault);
+let txt='', plan=null;
+if(c.fault==='putus-23m'){txt=`HASIL AI — Layer 1 OPEN (confidence 92%)\n• Admin up / Oper down, TDR OPEN @ ~23m, PoE 0W, error counter 0.\n• Artinya: kabel putus / ujung tidak nyolok.\n• Arahan AI: PoE cycle 1x untuk bukti → lalu buat tiket teknisi + titik 23m.`;plan={aksi:'poe-lalu-tiket',label:'PoE cycle + buat tiket teknisi'};}
+else if(c.fault==='kabel-jelek'){txt=`HASIL AI — Kabel jelek (87%)\n• CRC/FCS naik + flap 17x/hari + TDR SHORT 41m.\n• Arahan AI: turunkan ke 100M-Full sementara + jadwalkan recabling.`;plan={aksi:'downgrade-100m',label:'Turun ke 100M + jadwal recabling'};}
+else if(c.fault==='disabled-human'){txt=`HASIL AI — Human error (99%)\n• Admin DOWN manual.\n• Arahan AI: enable port kembali + catat aktor.`;plan={aksi:'enable',label:'Enable port kembali'};}
+else if(c.fault==='redaman-tinggi'){txt=`HASIL AI — SFP redaman gede (90%)\n• RX -24.6 dBm, redaman ~21.7 dB, CRC naik.\n• Arahan AI: instruksi bersih konektor + cek bending + ganti patchcord, workaround turun speed.`;plan={aksi:'sfp-workaround',label:'Workaround SFP + instruksi teknisi'};}
+else if(c.fault==='no-light'){txt=`HASIL AI — SFP NO LIGHT (96%)\n• RX -40 dBm + LOS. Fiber putus / tidak nyolok.\n• Arahan AI: buat tiket fiber + cek patchcord/ODP. Jangan flap.`;plan={aksi:'tiket-fiber',label:'Buat tiket fiber'};}
+else{txt=`HASIL AI — Sehat (98%)\n• Tidak ada aksi. Lanjut pantau.`;plan=null;}
+window._aiPlan=plan;
+document.getElementById('aiText').textContent=txt+(plan?`\n\n➡ ARAHAN AI: ${plan.label}\nKlik "Jalankan Arahan AI".`:`\n\n➡ Tidak ada aksi.`);
+log('> AI selesai: '+c.fault+(plan?' → arahan: '+plan.label:''));
 }
-function fix(a){const c=cur();if(a==='ticket'){log('> tiket dibuat: ['+c.n+'] '+c.fault+' → teknisi lapangan');return;}log('> eksekusi '+a+' di '+c.n+' ...');setTimeout(()=>log('✔ '+a+' selesai (dummy)'),700);}
+function runAiPlan(){
+const c=cur();const plan=window._aiPlan;
+if(!plan){log('> tidak ada arahan AI. Diagnosa dulu.');return;}
+log(`> jalankan arahan AI: ${plan.label} @ ${c.n} ...`);
+if(plan.aksi==='enable'){setTimeout(()=>{c.admin='up';c.oper='up';if(c.fault==='disabled-human')c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('✔ AI: port UP ✅ + aktor dicatat');renderIfaces();},900);}
+else if(plan.aksi==='downgrade-100m'){setTimeout(()=>{c.speed='100M-Full';log('✔ AI: speed → 100M-Full (stabil sementara) + tiket recabling dibuat');renderIfaces();},900);}
+else if(plan.aksi==='poe-lalu-tiket'){setTimeout(()=>{log('✔ AI: PoE cycle 10 dtk... ujung tetap mati → tiket teknisi dibuat (titik 23m)');},1200);}
+else if(plan.aksi==='sfp-workaround'){setTimeout(()=>{log('✔ AI: instruksi ke teknisi terkirim + speed workaround diterapkan (dummy)');},900);}
+else if(plan.aksi==='tiket-fiber'){setTimeout(()=>{log('✔ AI: tiket fiber dibuat → cek patchcord/ODP/bending');},700);}
+}
 renderRouters();renderIfaces();setInterval(tick,1000);
 </script>
 </body>
