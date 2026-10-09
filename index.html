@@ -92,7 +92,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <span>IP Publik: <b id="pubIp">203.0.113.10 (dummy)</b></span>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="detectPubIp()">🌐 Deteksi IP-ku</button>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="addTopoNode()">＋ Tambah perangkat</button>
-<span style="color:#64748b">drag node untuk geser • klik kanan node = ganti icon (router/switch/PC/server/firewall)</span>
+<span style="color:#64748b">drag node untuk geser • klik kanan node = ganti icon (internet/router/switch/PC/server/firewall)</span>
 </div>
 <svg id="topoSvg" width="100%" height="460" style="background:linear-gradient(180deg,#e0f2fe,#fff);border:2px solid #bae6fd;border-radius:14px;margin-top:10px;touch-action:none"></svg>
 <div id="topoList" style="font-size:12px;color:#475569;margin-top:8px"></div>
@@ -203,9 +203,9 @@ renderRouters();renderIfaces();setInterval(tick,1000);
 // ---- TABS ----
 function showTab(w){const d=w==='dash';document.getElementById('tab-dash').style.display=d?'flex':'none';document.getElementById('tab-topo').style.display=d?'none':'flex';document.getElementById('tabBtnDash').style.background=d?'#0284c7':'#fff';document.getElementById('tabBtnDash').style.color=d?'#fff':'#0369a1';document.getElementById('tabBtnTopo').style.background=d?'#fff':'#0284c7';document.getElementById('tabBtnTopo').style.color=d?'#0369a1':'#fff';if(!d)drawTopo();}
 // ---- TOPOLOGI DUMMY (archify-style pastel) ----
-const ICONS={router:'🛰',switch:'🔀',pc:'🖥',server:'🗄',firewall:'🧱'};
+const ICONS={router:'🛰',switch:'🔀',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
 let TOPO=[
-{id:'inet',icon:'firewall',label:'IP Publik',sub:'203.0.113.10',x:80,y:90},
+{id:'inet',icon:'internet',label:'IP Publik',sub:'203.0.113.10',x:80,y:90},
 {id:'fw',icon:'firewall',label:'Firewall',sub:'edge',x:230,y:90},
 {id:'ra',icon:'router',label:'Router A',sub:'10.0.1.1',x:380,y:90},
 {id:'rb',icon:'router',label:'Router B',sub:'10.0.2.1',x:380,y:230},
