@@ -54,7 +54,12 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div style="font-size:12px;color:#64748b">🟢 up &nbsp; 🔴 gangguan &nbsp; ⚪ down / disable</div>
 </div>
 <div class="main">
-<div class="topbar"><div><h1 id="title">-</h1><p>Dummy + Diagnosa Layer 1 (copper TDR + SFP DDM) • pastel biru awan</p></div><div class="pill" id="statusPill">●</div></div>
+<div class="topbar"><div><h1 id="title">-</h1><p>Dummy + Diagnosa Layer 1 (copper TDR + SFP DDM) • pastel biru awan</p></div><div style="display:flex;gap:8px;align-items:center"><div class="pill" id="statusPill">●</div>
+<div style="background:#e0f2fe;border-radius:12px;padding:4px;display:flex;gap:4px">
+<button id="tabBtnDash" onclick="showTab('dash')" style="border:0;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff">Dashboard</button>
+<button id="tabBtnTopo" onclick="showTab('topo')" style="border:0;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;background:#fff;color:#0369a1">Topologi</button>
+</div></div></div>
+<div id="tab-dash" style="display:flex;flex-direction:column;gap:14px">
 <div class="cards">
 <div class="card"><small>DOWNLOAD</small><h2 id="dl">-</h2><span id="dlSub">-</span></div>
 <div class="card"><small>UPLOAD</small><h2 id="ul">-</h2><span id="ulSub">-</span></div>
@@ -79,6 +84,20 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="grid2">
 <div class="panel"><h3>🔦 Layer 1 — SFP / Fiber DDM</h3><div id="sfp"></div></div>
 <div class="panel"><h3>🧾 Error Counter & Flapping</h3><div id="err"></div></div>
+</div>
+</div><!-- /tab-dash -->
+<div id="tab-topo" style="display:none;flex-direction:column;gap:12px">
+<div class="panel"><h3>🗺 Topologi — berdasar IP Publik (dummy, gaya archify pastel)</h3>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px">
+<span>IP Publik: <b id="pubIp">203.0.113.10 (dummy)</b></span>
+<button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="detectPubIp()">🌐 Deteksi IP-ku</button>
+<button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="addTopoNode()">＋ Tambah perangkat</button>
+<span style="color:#64748b">drag node untuk geser • klik kanan node = ganti icon (router/switch/PC/server/firewall)</span>
+</div>
+<svg id="topoSvg" width="100%" height="460" style="background:linear-gradient(180deg,#e0f2fe,#fff);border:2px solid #bae6fd;border-radius:14px;margin-top:10px;touch-action:none"></svg>
+<div id="topoList" style="font-size:12px;color:#475569;margin-top:8px"></div>
+<div style="font-size:12px;margin-top:6px">Lihat juga diagram archify statis: <a href="../../archify-output/topologi-netmon.html" target="_blank">archify-output/topologi-netmon.html</a> (9/9 showcase pass)</div>
+</div>
 </div>
 </div>
 </div>
@@ -181,6 +200,46 @@ else if(plan.aksi==='sfp-workaround'){setTimeout(()=>{log('✔ AI: instruksi ke 
 else if(plan.aksi==='tiket-fiber'){setTimeout(()=>{log('✔ AI: tiket fiber dibuat → cek patchcord/ODP/bending');},700);}
 }
 renderRouters();renderIfaces();setInterval(tick,1000);
+// ---- TABS ----
+function showTab(w){const d=w==='dash';document.getElementById('tab-dash').style.display=d?'flex':'none';document.getElementById('tab-topo').style.display=d?'none':'flex';document.getElementById('tabBtnDash').style.background=d?'#0284c7':'#fff';document.getElementById('tabBtnDash').style.color=d?'#fff':'#0369a1';document.getElementById('tabBtnTopo').style.background=d?'#fff':'#0284c7';document.getElementById('tabBtnTopo').style.color=d?'#0369a1':'#fff';if(!d)drawTopo();}
+// ---- TOPOLOGI DUMMY (archify-style pastel) ----
+const ICONS={router:'🛰',switch:'🔀',pc:'🖥',server:'🗄',firewall:'🧱'};
+let TOPO=[
+{id:'inet',icon:'firewall',label:'IP Publik',sub:'203.0.113.10',x:80,y:90},
+{id:'fw',icon:'firewall',label:'Firewall',sub:'edge',x:230,y:90},
+{id:'ra',icon:'router',label:'Router A',sub:'10.0.1.1',x:380,y:90},
+{id:'rb',icon:'router',label:'Router B',sub:'10.0.2.1',x:380,y:230},
+{id:'sa',icon:'switch',label:'Switch A',sub:'LAN',x:540,y:90},
+{id:'srv',icon:'server',label:'Server',sub:'10.0.1.10',x:700,y:50},
+{id:'pc',icon:'pc',label:'PC Office',sub:'10.0.1.21',x:700,y:130},
+{id:'cctv',icon:'pc',label:'CCTV',sub:'DOWN',x:700,y:210,st:'bad'},
+];
+let LINKS=[['inet','fw'],['fw','ra'],['ra','rb'],['ra','sa'],['sa','srv'],['sa','pc'],['sa','cctv']];
+function topoNode(id){return TOPO.find(n=>n.id===id);}
+function drawTopo(){
+const svg=document.getElementById('topoSvg');const W=svg.clientWidth||900;
+svg.setAttribute('viewBox',`0 0 860 300`);
+svg.innerHTML='';
+LINKS.forEach(([a,b])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',B.st==='bad'?'#f87171':'#38bdf8');l.setAttribute('stroke-width',B.st==='bad'?'3':'2.5');if(B.st==='bad')l.setAttribute('stroke-dasharray','7 5');svg.appendChild(l);});
+TOPO.forEach(n=>{
+const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('transform',`translate(${n.x},${n.y})`);g.style.cursor='grab';
+g.innerHTML=`<rect x="-62" y="-30" width="124" height="60" rx="16" fill="${n.st==='bad'?'#fee2e2':'#ffffff'}" stroke="${n.st==='bad'?'#f87171':'#7dd3fc'}" stroke-width="2.5"/><text y="-2" text-anchor="middle" font-size="22">${ICONS[n.icon]||'📦'}</text><text y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">${n.label}</text><text y="26" text-anchor="middle" font-size="9" fill="#64748b">${n.sub||''}</text>`;
+g.addEventListener('pointerdown',ev=>{g.setPointerCapture(ev.pointerId);const move=e2=>{const r=svg.getBoundingClientRect();const vx=860/r.width;n.x=Math.round((e2.clientX-r.left)*vx);n.y=Math.round((e2.clientY-r.top)*(300/r.height));g.setAttribute('transform',`translate(${n.x},${n.y})`);};const up=()=>{g.removeEventListener('pointermove',move);drawTopo();};g.addEventListener('pointermove',move);g.addEventListener('pointerup',up,{once:true});});
+g.addEventListener('contextmenu',ev=>{ev.preventDefault();topoMenu(ev.clientX,ev.clientY,n.id);});
+svg.appendChild(g);});
+document.getElementById('topoList').textContent=`${TOPO.length} perangkat dummy • ${LINKS.length} link • kanan-klik node untuk ganti icon`;
+}
+function topoMenu(x,y,id){
+document.getElementById('tmenu')?.remove();
+const m=document.createElement('div');m.id='tmenu';
+m.style.cssText=`position:fixed;left:${x}px;top:${y}px;background:#fff;border:2px solid #bae6fd;border-radius:12px;padding:8px;z-index:99;box-shadow:0 8px 24px rgba(2,132,199,.25);min-width:210px`;
+m.innerHTML=`<div style="font-size:12px;font-weight:800;color:#0369a1;margin-bottom:6px">Ganti icon → ${id}</div>`+Object.keys(ICONS).map(k=>`<button onclick="setTopoIcon('${id}','${k}')" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:7px;margin-top:3px;cursor:pointer">${ICONS[k]} ${k}</button>`).join('')+`<button onclick="delTopoNode('${id}')" style="width:100%;text-align:left;border:0;background:#fee2e2;border-radius:8px;padding:7px;margin-top:3px;cursor:pointer">🗑 hapus</button>`;
+document.body.appendChild(m);setTimeout(()=>document.addEventListener('click',()=>m.remove(),{once:true}),50);
+}
+function setTopoIcon(id,icon){const n=topoNode(id);if(n){n.icon=icon;}document.getElementById('tmenu')?.remove();drawTopo();}
+function delTopoNode(id){TOPO=TOPO.filter(n=>n.id!==id);LINKS=LINKS.filter(([a,b])=>a!==id&&b!==id);drawTopo();}
+function addTopoNode(){const id='n'+Date.now()%10000;TOPO.push({id,icon:'pc',label:'Baru',sub:'dummy',x:300+Math.random()*200,y:150+Math.random()*80});const near=TOPO[2]?.id;if(near)LINKS.push([near,id]);drawTopo();}
+async function detectPubIp(){const el=document.getElementById('pubIp');el.textContent='mendeteksi...';try{const r=await fetch('https://api.ipify.org?format=json');const j=await r.json();el.textContent=j.ip+' (asli)';const inet=topoNode('inet');if(inet){inet.sub=j.ip;inet.label='IP Publik';}drawTopo();}catch(e){el.textContent='203.0.113.10 (dummy, offline)';}}
 </script>
 </body>
 </html>
