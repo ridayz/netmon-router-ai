@@ -70,6 +70,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 </div>
 <div class="grid2">
 <div class="panel"><h3>📈 Traffic Realtime</h3><canvas id="chart" height="130"></canvas>
+<div id="ratioBox" style="margin-top:8px;font-size:13px;font-weight:700;background:#f0f9ff;border:2px solid #bae6fd;border-radius:10px;padding:8px 12px;color:#0369a1">Rasio DL:UL — menunggu data...</div>
 <div style="margin-top:12px"><h3>🔌 Layer 1 — Copper / Cable Test (TDR)</h3><div id="tdr"></div></div>
 </div>
 <div class="panel"><h3>🤖 Router AI — Full Diagnosa</h3>
@@ -249,7 +250,8 @@ document.getElementById('err').innerHTML=`<div class="kv"><span>CRC error</span>
 }
 const ctx=document.getElementById('chart');
 const chart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Download',data:dl,borderColor:'#0284c7',backgroundColor:'rgba(186,230,253,.5)',fill:true,tension:.4},{label:'Upload',data:ul,borderColor:'#38bdf8',borderDash:[6,4],fill:false,tension:.4}]},options:{animation:false,plugins:{legend:{labels:{color:'#0369a1'}}},scales:{y:{beginAtZero:true,grid:{color:'#e0f2fe'}},x:{display:false}}}});
-function tick(){const c=cur();const down=c.oper==='down';let d=down?0:20+Math.random()*60,u=down?0:5+Math.random()*20;if(c.fault==='kabel-jelek'||c.fault==='redaman-tinggi'){if(Math.random()>0.8)d*=0.25;}dl.push(d);dl.shift();ul.push(u);ul.shift();chart.update();document.getElementById('dl').textContent=d.toFixed(1)+' Mbps';document.getElementById('ul').textContent=u.toFixed(1)+' Mbps';document.getElementById('ping').textContent=down?'—':(8+Math.random()*20).toFixed(0)+' ms';const loss=down?100:(d<8?8+Math.random()*8:Math.random()*1);document.getElementById('loss').textContent=loss.toFixed(1)+' %';try{if(!down&&loss>5)maybeAlarm(curR+'/'+c.n,'warn','Loss tinggi '+loss.toFixed(1)+'%');}catch(e){}try{refreshDurations();const pill=document.getElementById('statusPill');if(pill&&down&&c.downSince)pill.textContent='● DOWN '+fmtDur(Date.now()-c.downSince);}catch(e){}}
+function tick(){const c=cur();const down=c.oper==='down';let d=down?0:20+Math.random()*60,u=down?0:5+Math.random()*20;if(c.fault==='kabel-jelek'||c.fault==='redaman-tinggi'){if(Math.random()>0.8)d*=0.25;}dl.push(d);dl.shift();ul.push(u);ul.shift();chart.update();document.getElementById('dl').textContent=d.toFixed(1)+' Mbps';document.getElementById('ul').textContent=u.toFixed(1)+' Mbps';document.getElementById('ping').textContent=down?'—':(8+Math.random()*20).toFixed(0)+' ms';const loss=down?100:(d<8?8+Math.random()*8:Math.random()*1);document.getElementById('loss').textContent=loss.toFixed(1)+' %';try{if(!down&&loss>5)maybeAlarm(curR+'/'+c.n,'warn','Loss tinggi '+loss.toFixed(1)+'%');}catch(e){}try{refreshDurations();const pill=document.getElementById('statusPill');if(pill&&down&&c.downSince)pill.textContent='● DOWN '+fmtDur(Date.now()-c.downSince);}catch(e){}
+try{const ad=dl.reduce((a,b)=>a+b,0)/dl.length, au=ul.reduce((a,b)=>a+b,0)/ul.length;const rb=document.getElementById('ratioBox');if(rb){if(down){rb.textContent='Rasio DL:UL — device DOWN';}else{const r=au>0.05?(ad/au):99;const timpang=(au<2&&ad>15)||r>8;rb.innerHTML='Rasio DL:UL ≈ '+ad.toFixed(1)+' : '+au.toFixed(1)+' ('+r.toFixed(1)+':1) — '+(timpang?'<span style="color:#b91c1c">⚠ TIMPANG, upload kekecilan</span>':'<span style="color:#15803d">✅ seimbang</span>');}}}catch(e){}}
 function log(m){const el=document.getElementById('log');el.textContent+=m+'\n';el.scrollTop=el.scrollHeight;}
 function aiDiagnose(){
 const c=cur();log('> AI diagnosa '+c.n+' ...');
@@ -259,7 +261,19 @@ else if(c.fault==='kabel-jelek'){txt=`HASIL AI — Kabel jelek (87%)\n• CRC/FC
 else if(c.fault==='disabled-human'){txt=`HASIL AI — Human error (99%)\n• Admin DOWN manual.\n• Arahan AI: enable port kembali + catat aktor.`;plan={aksi:'enable',label:'Enable port kembali'};}
 else if(c.fault==='redaman-tinggi'){txt=`HASIL AI — SFP redaman gede (90%)\n• RX -24.6 dBm, redaman ~21.7 dB, CRC naik.\n• Arahan AI: instruksi bersih konektor + cek bending + ganti patchcord, workaround turun speed.`;plan={aksi:'sfp-workaround',label:'Workaround SFP + instruksi teknisi'};}
 else if(c.fault==='no-light'){txt=`HASIL AI — SFP NO LIGHT (96%)\n• RX -40 dBm + LOS. Fiber putus / tidak nyolok.\n• Arahan AI: buat tiket fiber + cek patchcord/ODP. Jangan flap.`;plan={aksi:'tiket-fiber',label:'Buat tiket fiber'};}
-else{txt=`HASIL AI — Sehat (98%)\n• Tidak ada aksi. Lanjut pantau.`;plan=null;}
+else{txt=`HASIL AI — Sehat (98%)\n• TDR OK, SFP normal, error counter bersih.`;plan=null;}
+// ---- CEK KETIMPANGAN BANDWIDTH (berlaku di device mana pun yang UP) ----
+try{
+if(c.oper!=='down'){
+const ad=dl.reduce((a,b)=>a+b,0)/dl.length, au=ul.reduce((a,b)=>a+b,0)/ul.length;
+const r=au>0.05?(ad/au):99;
+if((au<2&&ad>15)||r>8){
+txt+=`\n\n⚠ KETIMPANGAN TERDETEKSI (bagian AI diagnosa)\n• Rata-rata DL ${ad.toFixed(1)} Mbps vs UL ${au.toFixed(1)} Mbps → rasio ${r.toFixed(1)}:1.\n• Pola "download lancar, upload ~0": tersangka QoS/policer uplink, NAT conntrack penuh, atau airtime AP habis.\n• Berlaku untuk ${curR}/${c.n} — pindah device buat cek yang lain.`;
+if(!plan)plan={aksi:'imbalance-check',label:'Telusuri sumber timpang + tiket NOC'};
+log('> AI: ketimpangan DL:UL '+r.toFixed(1)+':1 @ '+c.n);
+pushAlarm('warn',curR+'/'+c.n,'Timpang DL '+ad.toFixed(0)+'M vs UL '+au.toFixed(1)+'M ('+r.toFixed(1)+':1)');
+}else{txt+=`\n\n• Rasio DL:UL ${r.toFixed(1)}:1 — seimbang.`;}
+}}catch(e){}
 window._aiPlan=plan;
 document.getElementById('aiText').textContent=txt+(plan?`\n\n➡ ARAHAN AI: ${plan.label}\nKlik "Jalankan Arahan AI".`:`\n\n➡ Tidak ada aksi.`);
 log('> AI selesai: '+c.fault+(plan?' → arahan: '+plan.label:''));try{pushAlarm(plan?'warn':'info',curR+'/'+c.n,'AI diagnosa: '+c.fault+(plan?' → '+plan.label:' (sehat)'));}catch(e){}
@@ -305,6 +319,7 @@ else if(plan.aksi==='downgrade-100m'){setTimeout(()=>{c.speed='100M-Full';log('�
 else if(plan.aksi==='poe-lalu-tiket'){setTimeout(()=>{log('✔ AI: PoE cycle 10 dtk... ujung tetap mati → tiket teknisi dibuat (titik 23m)');try{pushAlarm('crit',curR+'/'+c.n,'Layer 1 OPEN → tiket teknisi (titik 23m)');}catch(e){}},1200);}
 else if(plan.aksi==='sfp-workaround'){setTimeout(()=>{log('✔ AI: instruksi ke teknisi terkirim + speed workaround diterapkan (dummy)');try{pushAlarm('warn',curR+'/'+c.n,'SFP redaman gede → instruksi teknisi terkirim');}catch(e){}},900);}
 else if(plan.aksi==='tiket-fiber'){setTimeout(()=>{log('✔ AI: tiket fiber dibuat → cek patchcord/ODP/bending');try{pushAlarm('crit',curR+'/'+c.n,'SFP NO LIGHT → tiket fiber');}catch(e){}},700);}
+else if(plan.aksi==='imbalance-check'){setTimeout(()=>{log('✔ AI: cek QoS uplink + conntrack + airtime AP... tiket NOC dibuat (dummy)');try{pushAlarm('warn',curR+'/'+c.n,'Tiket NOC: telusuri ketimpangan DL:UL');}catch(e){}},900);}
 }
 renderRouters();
 // catat awal DOWN untuk interface yang mulai dalam keadaan down (biar durasinya jalan dari load)
