@@ -124,6 +124,15 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div id="topoList" style="font-size:12px;color:#475569;margin-top:8px"></div>
 <div style="font-size:12px;margin-top:6px">Lihat juga diagram archify statis: <a href="../../archify-output/topologi-netmon.html" target="_blank">archify-output/topologi-netmon.html</a> (9/9 showcase pass)</div>
 </div>
+<div class="panel"><h3>💬 Chat NetMon AI — ngobrol kayak sama teknisi</h3>
+<div id="chatBox" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;background:#f0f9ff;border:2px solid #bae6fd;border-radius:12px;padding:10px;font-size:13px"><div style="color:#64748b">Halo men, gua ngerti topologimu + status live-nya. Tanya aja, misal: <i>"cek router gua, ada error engga?"</i></div></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+<button class="ai-btn ghost" style="width:auto;padding:6px 10px;font-size:12px" onclick="chatAsk('cek router gua, ada error engga?')">cek ada error engga?</button>
+<button class="ai-btn ghost" style="width:auto;padding:6px 10px;font-size:12px" onclick="chatAsk('yang DOWN apa aja sekarang?')">yang DOWN apa aja?</button>
+<button class="ai-btn ghost" style="width:auto;padding:6px 10px;font-size:12px" onclick="chatAsk('traffic paling gede di mana?')">traffic gede di mana?</button>
+</div>
+<div style="display:flex;gap:6px;margin-top:8px"><input id="chatIn" placeholder="Tanya apa aja soal jaringanmu..." style="flex:1;border:2px solid #bae6fd;border-radius:10px;padding:9px 12px;font-size:13px" onkeydown="if(event.key==='Enter')chatSend()"><button class="ai-btn" style="width:auto;padding:9px 18px;margin:0" onclick="chatSend()">Kirim</button></div>
+</div>
 </div>
 <div id="tab-log" style="display:none;flex-direction:column;gap:12px">
 <div class="panel"><h3>🔔 System Log & Alarm</h3>
@@ -402,6 +411,22 @@ let lastAlarmAt={};
 function maybeAlarm(dev,sev,msg){const k=dev+sev;const now=Date.now();if(now-(lastAlarmAt[k]||0)<20000)return;lastAlarmAt[k]=now;pushAlarm(sev,dev,msg);}
 const _tick=tick;
 // ---- TABS ----
+function aiCtx(){return {layer:curLayer,layerLabel:(LAYERS[curLayer]||{}).label||curLayer,nodes:TOPO.map(n=>({label:n.label,sub:n.sub,icon:n.icon,st:(typeof topoSt==='function'?topoSt(n):(n.st||''))})),selected:curR+'/'+((cur()||{}).n||''),alarms:(typeof ALARMS!=='undefined'?ALARMS:[]).slice(0,15).map(a=>({t:a.t,sev:a.sev,dev:a.dev,msg:a.msg})),downtime:(typeof DOWNTIME!=='undefined'?DOWNTIME:[]).slice(0,10).map(d=>({dev:d.dev,downStr:d.downStr,upStr:d.upAt?d.upStr:null,totalMs:d.totalMs||null})),live:Object.keys(typeof LIVE!=='undefined'?LIVE:{})};}
+function chatBubble(who,text){const box=document.getElementById('chatBox');if(!box)return;const d=document.createElement('div');d.style.cssText=who==='user'?'align-self:flex-end;background:#0284c7;color:#fff;border-radius:12px 12px 4px 12px;padding:8px 12px;max-width:85%;white-space:pre-wrap':'align-self:flex-start;background:#fff;border:2px solid #bae6fd;border-radius:12px 12px 12px 4px;padding:8px 12px;max-width:85%;white-space:pre-wrap;color:#0c4a6e';d.textContent=(who==='user'?'🧑 ':'🤖 ')+text;box.appendChild(d);box.scrollTop=box.scrollHeight;return d;}
+function chatAsk(t){document.getElementById('chatIn').value=t;chatSend();}
+async function chatSend(){
+const inp=document.getElementById('chatIn');const msg=(inp.value||'').trim();if(!msg)return;inp.value='';
+chatBubble('user',msg);
+const wait=chatBubble('ai','⏳ ngecek...');
+try{
+const r=await fetch(COLL()+'/api/ai-ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,ctx:aiCtx()})});
+const j=await r.json();
+if(!j.ok)throw new Error(j.error||('server '+r.status));
+wait.textContent='🤖 '+j.reply;
+try{pushAlarm('info','chat-ai','Q: '+msg.slice(0,60));}catch(e){}
+}catch(e){wait.textContent='🤖 waduh, AI-nya nggak nyambung: '+String(e.message||e).slice(0,120)+'\n(cek collector jalan + AI_KEY di .env keisi)';}
+const box=document.getElementById('chatBox');if(box)box.scrollTop=box.scrollHeight;
+}
 function showTab(w){const tabs={dash:'tab-dash',topo:'tab-topo',log:'tab-log'};for(const k in tabs){document.getElementById(tabs[k]).style.display=(k===w)?'flex':'none';}const btns={dash:'tabBtnDash',topo:'tabBtnTopo',log:'tabBtnLog'};for(const k in btns){const on=(k===w);document.getElementById(btns[k]).style.background=on?'#0284c7':'#fff';document.getElementById(btns[k]).style.color=on?'#fff':'#0369a1';}if(w==='topo'){renderLayerBtns();drawTopo();}if(w==='log'){renderAlarms();renderDowntime();markAlarmsRead();}}
 // ---- TOPOLOGI DUMMY (archify-style pastel) ----
 const ICONS={router:'Router',switch:'🔀',swpoe:'🔀⚡',ont:'📟',olt:'🖧',ap:'📶',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
