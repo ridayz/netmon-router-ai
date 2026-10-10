@@ -572,7 +572,7 @@ TOPO.push({id,icon,label:ident,sub:clean+' • LIVE '+j.via,x:Math.round(200+Mat
 if(best)LINKS.push([best.id,id,(icon==='router'||icon==='switch')?'fo':'lan']);
 curR=key;curI=DB[key][0].n;
 DB[key].forEach(p=>{if(p.oper==='down'&&!p.downSince)p.downSince=Date.now();});
-renderRouters();renderIfaces();drawTopo();saveTopo();
+renderRouters();renderIfaces();drawTopo();saveTopo();showTab('dash');
 log('✔ LIVE '+clean+': '+ident+' ('+j.via+') • '+ifs.length+' interface — traffic realtime dari device asli 🟢');
 try{pushAlarm('info','detect/'+clean,'LIVE: '+ident+' • '+ifs.length+' interface');}catch(e){}
 }).catch(e=>{
@@ -597,7 +597,7 @@ const id='ip'+Date.now()%100000;
 TOPO.push({id,icon,label:key,sub:clean+' • '+type,x:Math.round(200+Math.random()*400),y:Math.round(120+Math.random()*160),db:key});
 if(best)LINKS.push([best.id,id,(icon==='router'||icon==='switch')?'fo':'lan']);
 curR=key;curI=DB[key][0].n;
-renderRouters();renderIfaces();drawTopo();saveTopo();
+renderRouters();renderIfaces();drawTopo();saveTopo();showTab('dash');
 log('✔ detect '+clean+': '+type+' • '+ifs+' interface → "'+key+'" (simulasi, label peta bisa diedit 2x klik)');
 try{pushAlarm('info','detect/'+clean,'Terdeteksi '+type+' • '+ifs+' interface (simulasi)');}catch(e){}
 }
