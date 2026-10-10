@@ -98,8 +98,13 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="panel"><h3>🗺 Topologi — berdasar IP Publik (dummy, gaya archify pastel)</h3>
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;margin-bottom:8px">
 <span class="label" style="margin:0">Layer:</span>
-<button id="layerPu" onclick="setLayer('pu')" style="border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff">Manage ICTel PU</button>
-<button id="layerKij" onclick="setLayer('kij')" style="border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:#fff;color:#0369a1;border:2px solid #bae6fd">ICTEL KIJ</button>
+<span id="layerBtns" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+<button onclick="newLayer()" style="border:2px dashed #0284c7;background:#fff;color:#0284c7;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">＋ Layer Baru</button>
+<button onclick="saveTopo(true)" style="border:0;background:#059669;color:#fff;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">💾 Save</button>
+<button onclick="exportTopo()" class="ai-btn ghost" style="width:auto;padding:7px 12px">⬇ Export</button>
+<button onclick="document.getElementById('importTopo').click()" class="ai-btn ghost" style="width:auto;padding:7px 12px">⬆ Import</button>
+<input type="file" id="importTopo" accept=".json" style="display:none" onchange="importTopo(this)">
+<span id="saveStat" style="font-size:12px;color:#64748b"></span>
 </div>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px">
 <span>IP Publik: <b id="pubIp">203.0.113.10 (dummy)</b></span>
@@ -363,7 +368,7 @@ let lastAlarmAt={};
 function maybeAlarm(dev,sev,msg){const k=dev+sev;const now=Date.now();if(now-(lastAlarmAt[k]||0)<20000)return;lastAlarmAt[k]=now;pushAlarm(sev,dev,msg);}
 const _tick=tick;
 // ---- TABS ----
-function showTab(w){const tabs={dash:'tab-dash',topo:'tab-topo',log:'tab-log'};for(const k in tabs){document.getElementById(tabs[k]).style.display=(k===w)?'flex':'none';}const btns={dash:'tabBtnDash',topo:'tabBtnTopo',log:'tabBtnLog'};for(const k in btns){const on=(k===w);document.getElementById(btns[k]).style.background=on?'#0284c7':'#fff';document.getElementById(btns[k]).style.color=on?'#fff':'#0369a1';}if(w==='topo')drawTopo();if(w==='log'){renderAlarms();renderDowntime();markAlarmsRead();}}
+function showTab(w){const tabs={dash:'tab-dash',topo:'tab-topo',log:'tab-log'};for(const k in tabs){document.getElementById(tabs[k]).style.display=(k===w)?'flex':'none';}const btns={dash:'tabBtnDash',topo:'tabBtnTopo',log:'tabBtnLog'};for(const k in btns){const on=(k===w);document.getElementById(btns[k]).style.background=on?'#0284c7':'#fff';document.getElementById(btns[k]).style.color=on?'#fff':'#0369a1';}if(w==='topo'){renderLayerBtns();drawTopo();}if(w==='log'){renderAlarms();renderDowntime();markAlarmsRead();}}
 // ---- TOPOLOGI DUMMY (archify-style pastel) ----
 const ICONS={router:'Router',switch:'🔀',swpoe:'🔀⚡',ont:'📟',olt:'🖧',ap:'📶',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
 function iconSvg(t){
@@ -375,7 +380,7 @@ if(t==='switch')return `<g transform="translate(0,-13)"><rect x="-24" y="-4" wid
 if(t==='swpoe')return iconSvg('switch').replace('</g>','<path d="M15,-24 l-6,9 h3.6 l-2.2,7.5 6.6,-9.5 h-3.6 z" fill="#fbbf24" stroke="#b45309" stroke-width=".8"/></g>');
 return null;
 }
-const LAYERS={
+const DEFAULT_LAYERS={
 pu:{label:'Manage ICTel PU',vb:'0 0 980 440',
 areas:[
 {label:'Area Server ICTel',x:5,y:18,w:280,h:116},
@@ -409,11 +414,20 @@ nodes:[
 ],
 links:[['isp','swK','fo'],['swK','oltK','fo'],['oltK','ont1','fo'],['oltK','ont2','fo'],['ont1','ten1','lan'],['ont2','ten2','lan']]}};
 let curLayer='pu';
-let TOPO=LAYERS.pu.nodes;
-let LINKS=LAYERS.pu.links;
-const TOPO_HOME={};for(const l in LAYERS){TOPO_HOME[l]={};LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
-function resetTopo(){for(const l in LAYERS){LAYERS[l].nodes.forEach(n=>{const h=(TOPO_HOME[l]||{})[n.id];if(h){n.x=h.x;n.y=h.y;}});}drawTopo();log('> topologi dikembalikan ke posisi semula');try{pushAlarm('info','topologi','Posisi node dikembalikan ke semula');}catch(e){}}
-function setLayer(l){curLayer=l;TOPO=LAYERS[l].nodes;LINKS=LAYERS[l].links;document.getElementById('layerPu').style.background=l==='pu'?'#0284c7':'#fff';document.getElementById('layerPu').style.color=l==='pu'?'#fff':'#0369a1';document.getElementById('layerKij').style.background=l==='kij'?'#0284c7':'#fff';document.getElementById('layerKij').style.color=l==='kij'?'#fff':'#0369a1';log('> layer topologi: '+LAYERS[l].label);drawTopo();}
+let LAYERS=JSON.parse(JSON.stringify(DEFAULT_LAYERS));
+try{const sv=JSON.parse(localStorage.getItem('netmon-topo-v1')||'null');if(sv&&sv.layers&&sv.layers.pu&&sv.layers.kij){LAYERS=sv.layers;if(sv.cur&&LAYERS[sv.cur])curLayer=sv.cur;setTimeout(()=>{const st=document.getElementById('saveStat');if(st)st.textContent='Projek dimuat (tersimpan '+(sv.at||'?')+')';},300);}}catch(e){}
+let TOPO=LAYERS[curLayer].nodes;
+let LINKS=LAYERS[curLayer].links;
+const TOPO_HOME={};for(const l in DEFAULT_LAYERS){TOPO_HOME[l]={};DEFAULT_LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
+function saveTopo(manual){try{const at=new Date().toLocaleString('id-ID',{hour12:false});localStorage.setItem('netmon-topo-v1',JSON.stringify({at,cur:curLayer,layers:LAYERS}));const st=document.getElementById('saveStat');if(st)st.textContent=(manual?'💾 Tersimpan ':'Autosave ')+at;if(manual){log('> projek topologi di-SAVE ('+at+')');pushAlarm('info','topologi','Projek topologi di-save');}}catch(e){if(manual)log('> SAVE gagal: '+e.message);}}
+function renderLayerBtns(){const el=document.getElementById('layerBtns');if(!el)return;el.innerHTML='';Object.keys(LAYERS).forEach(k=>{const on=(k===curLayer);const b=document.createElement('button');b.style.cssText=`border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:${on?'#0284c7':'#fff'};color:${on?'#fff':'#0369a1'};${on?'':'border:2px solid #bae6fd;'}`;b.textContent=LAYERS[k].label||k;if(k!=='pu'&&k!=='kij'){const x=document.createElement('span');x.textContent=' ✕';x.title='hapus layer';x.style.cssText='margin-left:6px;color:#ef4444;cursor:pointer';x.onclick=(ev)=>{ev.stopPropagation();delLayer(k);};b.appendChild(x);}b.onclick=()=>setLayer(k);el.appendChild(b);});}
+function newLayer(){const nama=prompt('Nama layer baru:','Layer Baru');if(!nama) return;const key='c'+Date.now()%100000;LAYERS[key]={label:nama,vb:'0 0 900 400',areas:[],nodes:[],links:[]};TOPO_HOME[key]={};setLayer(key);saveTopo(true);log('> layer baru: '+nama);}
+function delLayer(k){if(k==='pu'||k==='kij')return;if(!confirm('Hapus layer "'+(LAYERS[k].label||k)+'" beserta isinya?'))return;delete LAYERS[k];if(curLayer===k)setLayer('pu');else{renderLayerBtns();}saveTopo(true);log('> layer dihapus: '+k);}
+function exportTopo(){try{const blob=new Blob([JSON.stringify({app:'netmon-topologi',at:new Date().toISOString(),layers:LAYERS},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='netmon-topologi.json';a.click();log('> projek di-export ke netmon-topologi.json');}catch(e){log('> export gagal: '+e.message);}}
+function importTopo(inp){const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);const ls=d.layers||d;if(!ls.pu||!ls.kij)throw new Error('format bukan projek netmon');LAYERS=ls;if(!LAYERS[curLayer])curLayer='pu';TOPO=LAYERS[curLayer].nodes;LINKS=LAYERS[curLayer].links;setLayer(curLayer);saveTopo(true);log('> projek di-import dari '+f.name);}catch(e){log('> import gagal: '+e.message);alert('Import gagal: '+e.message);}};rd.readAsText(f);inp.value='';}
+renderLayerBtns();
+function resetTopo(){for(const l in LAYERS){LAYERS[l].nodes.forEach(n=>{const h=(TOPO_HOME[l]||{})[n.id];if(h){n.x=h.x;n.y=h.y;}});}drawTopo();saveTopo();log('> topologi dikembalikan ke posisi semula');try{pushAlarm('info','topologi','Posisi node dikembalikan ke semula');}catch(e){}}
+function setLayer(l){if(!LAYERS[l])l='pu';curLayer=l;TOPO=LAYERS[l].nodes;LINKS=LAYERS[l].links;renderLayerBtns();log('> layer topologi: '+LAYERS[l].label);drawTopo();}
 function topoNode(id){return TOPO.find(n=>n.id===id);}
 const VECICON=['router','ap','ont','olt','switch','swpoe'];
 function topoSt(n){if(!n.db||!DB[n.db])return n.st||'ok';const ps=DB[n.db];if(ps.some(p=>p.oper==='down'))return 'bad';if(ps.some(p=>p.fault!=='sehat'&&p.fault!=='sehat-sfp'))return 'warn';return 'ok';}
@@ -428,7 +442,7 @@ const st=topoSt(n);
 const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('transform',`translate(${n.x},${n.y})`);g.style.cursor='grab';
 const fill=st==='bad'?'#fee2e2':(st==='warn'?'#fef9c3':'#ffffff');const stroke=st==='bad'?'#f87171':(st==='warn'?'#f59e0b':'#7dd3fc');
 g.innerHTML=`<rect x="-62" y="-30" width="124" height="60" rx="16" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${VECICON.includes(n.icon)?iconSvg(n.icon):`<text y="0" text-anchor="middle" font-size="22">${ICONS[n.icon]||'📦'}</text>`}<text y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">${n.label}</text><text y="26" text-anchor="middle" font-size="9" fill="#64748b">${n.sub||''}</text>`;
-g.addEventListener('pointerdown',ev=>{window._topoDrag=true;g.setPointerCapture(ev.pointerId);const move=e2=>{const r=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const vx=vb.width/r.width;n.x=Math.round((e2.clientX-r.left)*vx);n.y=Math.round((e2.clientY-r.top)*(vb.height/r.height));g.setAttribute('transform',`translate(${n.x},${n.y})`);};const up=()=>{g.removeEventListener('pointermove',move);window._topoDrag=false;drawTopo();};g.addEventListener('pointermove',move);g.addEventListener('pointerup',up,{once:true});});
+g.addEventListener('pointerdown',ev=>{window._topoDrag=true;g.setPointerCapture(ev.pointerId);const move=e2=>{const r=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const vx=vb.width/r.width;n.x=Math.round((e2.clientX-r.left)*vx);n.y=Math.round((e2.clientY-r.top)*(vb.height/r.height));g.setAttribute('transform',`translate(${n.x},${n.y})`);};const up=()=>{g.removeEventListener('pointermove',move);window._topoDrag=false;drawTopo();saveTopo();};g.addEventListener('pointermove',move);g.addEventListener('pointerup',up,{once:true});});
 g.addEventListener('contextmenu',ev=>{ev.preventDefault();topoMenu(ev.clientX,ev.clientY,n.id);});
 g.addEventListener('click',()=>{if(n.db&&DB[n.db]){curR=n.db;curI=DB[n.db][0].n;try{renderRouters();renderIfaces();log('> pantau '+n.db);}catch(e){}}});
 svg.appendChild(g);});
@@ -473,9 +487,9 @@ showTab('dash');
 try{aiDiagnose();}catch(e){}
 setTimeout(()=>{try{runAiPlan();}catch(e){}},1600);
 }
-function setTopoIcon(id,icon){const n=topoNode(id);if(n){n.icon=icon;}document.getElementById('tmenu')?.remove();drawTopo();}
-function delTopoNode(id){TOPO=TOPO.filter(n=>n.id!==id);LINKS=LINKS.filter(([a,b])=>a!==id&&b!==id);drawTopo();}
-function addTopoNode(){const id='n'+Date.now()%10000;TOPO.push({id,icon:'pc',label:'Baru',sub:'dummy',x:300+Math.random()*200,y:150+Math.random()*80});const near=TOPO[2]?.id;if(near)LINKS.push([near,id,'lan']);drawTopo();}
+function setTopoIcon(id,icon){const n=topoNode(id);if(n){n.icon=icon;}document.getElementById('tmenu')?.remove();drawTopo();saveTopo();}
+function delTopoNode(id){TOPO=TOPO.filter(n=>n.id!==id);LINKS=LINKS.filter(([a,b])=>a!==id&&b!==id);drawTopo();saveTopo();}
+function addTopoNode(){const id='n'+Date.now()%10000;TOPO.push({id,icon:'pc',label:'Baru',sub:'dummy',x:300+Math.random()*200,y:150+Math.random()*80});const near=TOPO[2]?.id;if(near)LINKS.push([near,id,'lan']);drawTopo();saveTopo();}
 async function detectPubIp(){const el=document.getElementById('pubIp');el.textContent='mendeteksi...';try{const r=await fetch('https://api.ipify.org?format=json');const j=await r.json();el.textContent=j.ip+' (asli)';const inet=topoNode('inet');if(inet){inet.sub=j.ip;inet.label='IP Publik';}drawTopo();}catch(e){el.textContent='203.0.113.10 (dummy, offline)';}}
 </script>
 </body>
