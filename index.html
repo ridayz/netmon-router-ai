@@ -52,6 +52,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="label">Interface <span style="font-weight:400;text-transform:none">(klik kanan = disable/enable)</span></div><div id="ifaces" style="display:flex;flex-direction:column;gap:8px"></div>
 <div class="label">Legenda</div>
 <div style="font-size:12px;color:#64748b">🟢 up &nbsp; 🔴 gangguan &nbsp; ⚪ down / disable</div>
+<label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin-top:4px;background:#f0f9ff;border:2px solid #bae6fd;border-radius:10px;padding:8px 10px;cursor:pointer"><input type="checkbox" checked onchange="window.chaosOn=this.checked" style="width:15px;height:15px;margin-top:1px"> <span>Simulasi realistis — device kadang down sendiri lalu pulih</span></label>
 </div>
 <div class="main">
 <div class="topbar"><div><h1 id="title">-</h1><p>Dummy + Diagnosa Layer 1 (copper TDR + SFP DDM) • pastel biru awan</p></div><div style="display:flex;gap:8px;align-items:center"><div class="pill" id="statusPill">●</div>
@@ -138,17 +139,24 @@ let curR='Router A', curI='ether4-CCTV';
 function cur(){return DB[curR].find(x=>x.n===curI);}
 let dl=Array(30).fill(0), ul=Array(30).fill(0), labels=Array(30).fill('');
 function renderRouters(){const el=document.getElementById('routers');el.innerHTML='';Object.keys(DB).forEach(r=>{const b=document.createElement('button');b.className='router-btn'+(r===curR?' active':'');b.textContent='📡 '+r;b.onclick=()=>{curR=r;curI=DB[r][0].n;renderRouters();renderIfaces();};el.appendChild(b);});}
-function renderIfaces(){const el=document.getElementById('ifaces');el.innerHTML='';DB[curR].forEach(i=>{const d=document.createElement('div');d.className='iface'+(i.n===curI?' active':'');let dot='green';if(i.admin==='down')dot='grey';else if(i.oper==='down')dot='grey';else if(i.fault!=='sehat'&&i.fault!=='sehat-sfp')dot='red';d.innerHTML=`<span><span class="dot ${dot}"></span>${i.n}</span><span>${i.admin}/${i.oper}</span>`;d.onclick=()=>{curI=i.n;renderIfaces();};d.oncontextmenu=(ev)=>{ev.preventDefault();curI=i.n;showCtx(ev.clientX,ev.clientY);};el.appendChild(d);});refresh();}
+function fmtDur(ms){const s=Math.max(0,Math.floor(ms/1000));const m=Math.floor(s/60),h=Math.floor(m/60);if(h>0)return h+'j '+(m%60)+'m';if(m>0)return m+'m '+(s%60)+'d';return s+'d';}
+function setLink(rName,p,oper,reason){reason=reason||'otomatis';
+if(oper==='down'&&p.oper!=='down'){p.oper='down';p.downSince=Date.now();p.flaps=(p.flaps||0)+1;log('> '+p.n+' DOWN ('+reason+')');try{pushAlarm('crit',rName+'/'+p.n,'DOWN ('+reason+') — catat mulai '+new Date().toLocaleTimeString('id-ID',{hour12:false}));}catch(e){}}
+else if(oper==='up'&&p.oper==='down'){const dur=p.downSince?fmtDur(Date.now()-p.downSince):'?';p.oper='up';p.downSince=null;log('> '+p.n+' UP lagi setelah DOWN '+dur+' ('+reason+') ✅');try{pushAlarm('info',rName+'/'+p.n,'UP lagi setelah DOWN '+dur+' ('+reason+') ✅');}catch(e){}}
+if(rName===curR)renderIfaces();}
+function refreshDurations(){document.querySelectorAll('[data-dur]').forEach(el=>{const key=el.getAttribute('data-dur');const sep=key.indexOf('|');const r=key.slice(0,sep),n=key.slice(sep+1);const p=(DB[r]||[]).find(x=>x.n===n);if(!p)return;if(p.oper==='down'&&p.downSince){el.textContent='DOWN '+fmtDur(Date.now()-p.downSince);}else{el.textContent=p.admin+'/'+p.oper;}});}
+let chaosOn=true; window.chaosOn=true;
+function renderIfaces(){const el=document.getElementById('ifaces');el.innerHTML='';DB[curR].forEach(i=>{const d=document.createElement('div');d.className='iface'+(i.n===curI?' active':'');let dot='green';if(i.admin==='down')dot='grey';else if(i.oper==='down')dot='grey';else if(i.fault!=='sehat'&&i.fault!=='sehat-sfp')dot='red';const st=(i.oper==='down'&&i.downSince)?('DOWN '+fmtDur(Date.now()-i.downSince)):(i.admin+'/'+i.oper);d.innerHTML=`<span><span class="dot ${dot}"></span>${i.n}</span><span data-dur="${curR}|${i.n}">${st}</span>`;d.onclick=()=>{curI=i.n;renderIfaces();};d.oncontextmenu=(ev)=>{ev.preventDefault();curI=i.n;showCtx(ev.clientX,ev.clientY);};el.appendChild(d);});refresh();}
 function showCtx(x,y){hideCtx();const c=cur();const m=document.createElement('div');m.id='ctx';m.style.cssText=`position:fixed;left:${x}px;top:${y}px;background:#fff;border:2px solid #bae6fd;border-radius:12px;padding:6px;z-index:99;box-shadow:0 8px 24px rgba(2,132,199,.2);min-width:190px`;m.innerHTML=(c.admin==='up'
 ?`<button onclick="setAdmin('down')" style="width:100%;text-align:left;border:0;background:#fee2e2;border-radius:8px;padding:8px;cursor:pointer;font-weight:700">⛔ Disable port</button>`
 :`<button onclick="setAdmin('up')" style="width:100%;text-align:left;border:0;background:#dcfce7;border-radius:8px;padding:8px;cursor:pointer;font-weight:700">✅ Enable port</button>`)
 +`<button onclick="simUnplug()" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:8px;cursor:pointer;margin-top:4px">🔌 Simulasi cabut kabel</button>`;
 document.body.appendChild(m);setTimeout(()=>document.addEventListener('click',hideCtx,{once:true}),50);}
 function hideCtx(){document.getElementById('ctx')?.remove();}
-function setAdmin(s){hideCtx();const c=cur();c.admin=s;if(s==='down'){c.oper='down';c.prevFault=c.fault;c.fault='disabled-human';log('> kamu DISABLE '+c.n+' (klik kanan)');try{pushAlarm('crit',curR+'/'+c.n,'Port di-disable manual');}catch(e){}document.getElementById('aiText').textContent=`⚠️ ${c.n} di-disable manual.\nAI siap hidupin lagi — klik "AI Hidupin Port Ini" atau nyalakan Auto-resolve.`;}else{c.oper='up';c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('> kamu ENABLE '+c.n+' manual');}renderIfaces();}
-function simUnplug(){hideCtx();const c=cur();if(c.type==='sfp'){c.admin='up';c.oper='down';c.fault='no-light';}else{c.admin='up';c.oper='down';c.fault='putus-23m';c.poe='0W';}log('> simulasi kabel '+c.n+' DICABUT');renderIfaces();}
+function setAdmin(s){hideCtx();const c=cur();c.admin=s;if(s==='down'){c.prevFault=c.fault;c.fault='disabled-human';setLink(curR,c,'down','disable manual');log('> kamu DISABLE '+c.n+' (klik kanan)');document.getElementById('aiText').textContent=`⚠️ ${c.n} di-disable manual.\nAI siap hidupin lagi — jalankan Diagnosa lalu Jalankan Arahan AI, atau nyalakan Auto-resolve.`;}else{c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';setLink(curR,c,'up','enable manual');log('> kamu ENABLE '+c.n+' manual');}renderIfaces();}
+function simUnplug(){hideCtx();const c=cur();c.admin='up';if(c.type==='sfp'){c.fault='no-light';}else{c.fault='putus-23m';c.poe='0W';}setLink(curR,c,'down','kabel dicabut (simulasi)');log('> simulasi kabel '+c.n+' DICABUT');renderIfaces();}
 function aiAutoEnable(){const c=cur();if(c.admin==='down'){log('> AI menghidupkan '+c.n+' ...');document.getElementById('aiText').textContent='🤖 AI: enable port '+c.n+' ...';setTimeout(()=>{c.admin='up';c.oper='up';if(c.fault==='disabled-human')c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('✔ AI: '+c.n+' sudah UP lagi ✅');document.getElementById('aiText').textContent='✅ AI berhasil hidupin '+c.n+'.\nDicatat di log: auto-enable oleh AI (approval kamu via tombol).';renderIfaces();},900);}else{log('> AI: '+c.n+' sudah UP, nggak perlu dihidupin');}}
-setInterval(()=>{const on=document.getElementById('autoFix')?.checked;if(!on)return;for(const r in DB){for(const p of DB[r]){if(p.admin==='down'&&p.fault==='disabled-human'&&!p._aiFix){p._aiFix=true;const where=`${r}/${p.n}`;log(`> AUTO-RESOLVE: AI deteksi ${where} disabled → hidupin sendiri...`);setTimeout(()=>{p.admin='up';p.oper='up';p.fault=p.prevFault&&p.prevFault!=='disabled-human'?p.prevFault:'sehat';p._aiFix=false;log(`✔ AUTO-RESOLVE: ${where} UP ✅`);if(r===curR)renderIfaces();},2500);}}}},1500);
+setInterval(()=>{const on=document.getElementById('autoFix')?.checked;if(!on)return;for(const r in DB){for(const p of DB[r]){if(p.admin==='down'&&p.fault==='disabled-human'&&!p._aiFix){p._aiFix=true;const where=`${r}/${p.n}`;log(`> AUTO-RESOLVE: AI deteksi ${where} disabled → hidupin sendiri...`);setTimeout(()=>{p.admin='up';if(p.fault==='disabled-human')p.fault=p.prevFault&&p.prevFault!=='disabled-human'?p.prevFault:'sehat';p._aiFix=false;setLink(r,p,'up','auto-resolve AI');log(`✔ AUTO-RESOLVE: ${where} UP ✅`);if(r===curR)renderIfaces();},2500);}}}},1500);
 function badge(t,c){return `<span class="badge ${c}">${t}</span>`;}
 function refresh(){
 const c=cur();document.getElementById('title').textContent=`${curR} — ${c.n} (${c.type.toUpperCase()})`;
@@ -188,7 +196,7 @@ document.getElementById('err').innerHTML=`<div class="kv"><span>CRC error</span>
 }
 const ctx=document.getElementById('chart');
 const chart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Download',data:dl,borderColor:'#0284c7',backgroundColor:'rgba(186,230,253,.5)',fill:true,tension:.4},{label:'Upload',data:ul,borderColor:'#38bdf8',borderDash:[6,4],fill:false,tension:.4}]},options:{animation:false,plugins:{legend:{labels:{color:'#0369a1'}}},scales:{y:{beginAtZero:true,grid:{color:'#e0f2fe'}},x:{display:false}}}});
-function tick(){const c=cur();const down=c.oper==='down';let d=down?0:20+Math.random()*60,u=down?0:5+Math.random()*20;if(c.fault==='kabel-jelek'||c.fault==='redaman-tinggi'){if(Math.random()>0.8)d*=0.25;}dl.push(d);dl.shift();ul.push(u);ul.shift();chart.update();document.getElementById('dl').textContent=d.toFixed(1)+' Mbps';document.getElementById('ul').textContent=u.toFixed(1)+' Mbps';document.getElementById('ping').textContent=down?'—':(8+Math.random()*20).toFixed(0)+' ms';const loss=down?100:(d<8?8+Math.random()*8:Math.random()*1);document.getElementById('loss').textContent=loss.toFixed(1)+' %';try{if(down)maybeAlarm(curR+'/'+c.n,'crit','DOWN — oper down, cek diagnosa AI');else if(loss>5)maybeAlarm(curR+'/'+c.n,'warn','Loss tinggi '+loss.toFixed(1)+'%');}catch(e){}}
+function tick(){const c=cur();const down=c.oper==='down';let d=down?0:20+Math.random()*60,u=down?0:5+Math.random()*20;if(c.fault==='kabel-jelek'||c.fault==='redaman-tinggi'){if(Math.random()>0.8)d*=0.25;}dl.push(d);dl.shift();ul.push(u);ul.shift();chart.update();document.getElementById('dl').textContent=d.toFixed(1)+' Mbps';document.getElementById('ul').textContent=u.toFixed(1)+' Mbps';document.getElementById('ping').textContent=down?'—':(8+Math.random()*20).toFixed(0)+' ms';const loss=down?100:(d<8?8+Math.random()*8:Math.random()*1);document.getElementById('loss').textContent=loss.toFixed(1)+' %';try{if(!down&&loss>5)maybeAlarm(curR+'/'+c.n,'warn','Loss tinggi '+loss.toFixed(1)+'%');}catch(e){}try{refreshDurations();const pill=document.getElementById('statusPill');if(pill&&down&&c.downSince)pill.textContent='● DOWN '+fmtDur(Date.now()-c.downSince);}catch(e){}}
 function log(m){const el=document.getElementById('log');el.textContent+=m+'\n';el.scrollTop=el.scrollHeight;}
 function aiDiagnose(){
 const c=cur();log('> AI diagnosa '+c.n+' ...');
@@ -207,13 +215,27 @@ function runAiPlan(){
 const c=cur();const plan=window._aiPlan;
 if(!plan){log('> tidak ada arahan AI. Diagnosa dulu.');return;}
 log(`> jalankan arahan AI: ${plan.label} @ ${c.n} ...`);
-if(plan.aksi==='enable'){setTimeout(()=>{c.admin='up';c.oper='up';if(c.fault==='disabled-human')c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('✔ AI: port UP ✅ + aktor dicatat');try{pushAlarm('info',curR+'/'+c.n,'AI resolve: port di-enable kembali ✅');}catch(e){}renderIfaces();},900);}
+if(plan.aksi==='enable'){setTimeout(()=>{c.admin='up';if(c.fault==='disabled-human')c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';setLink(curR,c,'up','arahan AI (enable)');log('✔ AI: port UP ✅ + aktor dicatat');try{pushAlarm('info',curR+'/'+c.n,'AI resolve: port di-enable kembali ✅');}catch(e){}renderIfaces();},900);}
 else if(plan.aksi==='downgrade-100m'){setTimeout(()=>{c.speed='100M-Full';log('✔ AI: speed → 100M-Full (stabil sementara) + tiket recabling dibuat');try{pushAlarm('warn',curR+'/'+c.n,'AI workaround: speed → 100M-Full + tiket recabling');}catch(e){}renderIfaces();},900);}
 else if(plan.aksi==='poe-lalu-tiket'){setTimeout(()=>{log('✔ AI: PoE cycle 10 dtk... ujung tetap mati → tiket teknisi dibuat (titik 23m)');try{pushAlarm('crit',curR+'/'+c.n,'Layer 1 OPEN → tiket teknisi (titik 23m)');}catch(e){}},1200);}
 else if(plan.aksi==='sfp-workaround'){setTimeout(()=>{log('✔ AI: instruksi ke teknisi terkirim + speed workaround diterapkan (dummy)');try{pushAlarm('warn',curR+'/'+c.n,'SFP redaman gede → instruksi teknisi terkirim');}catch(e){}},900);}
 else if(plan.aksi==='tiket-fiber'){setTimeout(()=>{log('✔ AI: tiket fiber dibuat → cek patchcord/ODP/bending');try{pushAlarm('crit',curR+'/'+c.n,'SFP NO LIGHT → tiket fiber');}catch(e){}},700);}
 }
-renderRouters();renderIfaces();setInterval(tick,1000);
+renderRouters();
+// catat awal DOWN untuk interface yang mulai dalam keadaan down (biar durasinya jalan dari load)
+for(const r in DB){for(const p of DB[r]){if(p.oper==='down'&&!p.downSince)p.downSince=Date.now();}}
+renderIfaces();setInterval(tick,1000);
+// ---- SIMULASI REALISTIS: perangkat kadang down sendiri lalu pulih (kayak device asli) ----
+setInterval(()=>{if(!window.chaosOn)return;for(const r in DB){for(const p of DB[r]){
+if(p.admin==='down'||p._chaosHold)continue;
+const roll=Math.random();
+if(p.fault==='kabel-jelek'||p.fault==='redaman-tinggi'){
+if(p.oper==='up'&&roll<0.10){setLink(r,p,'down','flapping kabel');p._chaosHold=true;setTimeout(()=>{p._chaosHold=false;if(p.admin==='up'&&p.oper==='down')setLink(r,p,'up','pulih sendiri');},4000+Math.random()*9000);}
+else if(p.oper==='down'&&roll<0.40&&p.downSince&&Date.now()-p.downSince>8000){setLink(r,p,'up','pulih sendiri');}
+}else if(p.fault==='sehat'||p.fault==='sehat-sfp'){
+if(p.oper==='up'&&roll<0.015){setLink(r,p,'down','blip sesaat');p._chaosHold=true;setTimeout(()=>{p._chaosHold=false;if(p.admin==='up'&&p.oper==='down')setLink(r,p,'up','pulih sendiri');},3000+Math.random()*5000);}
+}
+}}},7000);
 // ---- SYSTEM LOG & ALARM ----
 let ALARMS=[], logFilter='all', unreadCrit=0;
 function tsNow(){const d=new Date();return d.toLocaleTimeString('id-ID',{hour12:false});}
