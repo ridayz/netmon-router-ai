@@ -104,6 +104,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <span>IP Publik: <b id="pubIp">203.0.113.10 (dummy)</b></span>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="detectPubIp()">🌐 Deteksi IP-ku</button>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="addTopoNode()">＋ Tambah perangkat</button>
+<button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="resetTopo()">↩ Reset posisi</button>
 <span style="color:#64748b">drag node untuk geser • klik kanan node = ganti icon (internet/router/switch/PC/server/firewall)</span>
 </div>
 <svg id="topoSvg" width="100%" height="460" style="background:linear-gradient(180deg,#e0f2fe,#fff);border:2px solid #bae6fd;border-radius:14px;margin-top:10px;touch-action:none"></svg>
@@ -377,6 +378,8 @@ links:[['isp','swK'],['swK','oltK'],['oltK','ont1'],['oltK','ont2'],['ont1','ten
 let curLayer='pu';
 let TOPO=LAYERS.pu.nodes;
 let LINKS=LAYERS.pu.links;
+const TOPO_HOME={};for(const l in LAYERS){TOPO_HOME[l]={};LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
+function resetTopo(){for(const l in LAYERS){LAYERS[l].nodes.forEach(n=>{const h=(TOPO_HOME[l]||{})[n.id];if(h){n.x=h.x;n.y=h.y;}});}drawTopo();log('> topologi dikembalikan ke posisi semula');try{pushAlarm('info','topologi','Posisi node dikembalikan ke semula');}catch(e){}}
 function setLayer(l){curLayer=l;TOPO=LAYERS[l].nodes;LINKS=LAYERS[l].links;document.getElementById('layerPu').style.background=l==='pu'?'#0284c7':'#fff';document.getElementById('layerPu').style.color=l==='pu'?'#fff':'#0369a1';document.getElementById('layerKij').style.background=l==='kij'?'#0284c7':'#fff';document.getElementById('layerKij').style.color=l==='kij'?'#fff':'#0369a1';log('> layer topologi: '+LAYERS[l].label);drawTopo();}
 function topoNode(id){return TOPO.find(n=>n.id===id);}
 function topoSt(n){if(!n.db||!DB[n.db])return n.st||'ok';const ps=DB[n.db];if(ps.some(p=>p.oper==='down'))return 'bad';if(ps.some(p=>p.fault!=='sehat'&&p.fault!=='sehat-sfp'))return 'warn';return 'ok';}
