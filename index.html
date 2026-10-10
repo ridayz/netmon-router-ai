@@ -143,7 +143,7 @@ let curR='Router A', curI='ether4-CCTV';
 function cur(){return DB[curR].find(x=>x.n===curI);}
 let dl=Array(30).fill(0), ul=Array(30).fill(0), labels=Array(30).fill('');
 function renderRouters(){const el=document.getElementById('routers');el.innerHTML='';Object.keys(DB).forEach(r=>{const b=document.createElement('button');b.className='router-btn'+(r===curR?' active':'');b.textContent='📡 '+r;b.onclick=()=>{curR=r;curI=DB[r][0].n;renderRouters();renderIfaces();};el.appendChild(b);});}
-function fmtDur(ms){const s=Math.max(0,Math.floor(ms/1000));const m=Math.floor(s/60),h=Math.floor(m/60);if(h>0)return h+'j '+(m%60)+'m';if(m>0)return m+'m '+(s%60)+'d';return s+'d';}
+function fmtDur(ms){const s=Math.max(0,Math.floor(ms/1000));const m=Math.floor(s/60),h=Math.floor(m/60);if(h>0)return h+' jam '+(m%60)+' mnt';if(m>0)return m+' mnt '+(s%60)+' dtk';return s+' dtk';}
 function clockStr(d){const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 function setLink(rName,p,oper,reason){reason=reason||'otomatis';
 if(oper==='down'&&p.oper!=='down'){p.oper='down';p.downSince=Date.now();p.flaps=(p.flaps||0)+1;log('> '+p.n+' DOWN ('+reason+')');try{pushAlarm('crit',rName+'/'+p.n,'DOWN ('+reason+') — catat mulai '+clockStr(new Date()));}catch(e){}try{DOWNTIME.unshift({dev:rName+'/'+p.n,downAt:Date.now(),downStr:clockStr(new Date()),upAt:null,upStr:'—',reason});renderDowntime();}catch(e){}}
