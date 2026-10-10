@@ -358,7 +358,7 @@ const _tick=tick;
 // ---- TABS ----
 function showTab(w){const tabs={dash:'tab-dash',topo:'tab-topo',log:'tab-log'};for(const k in tabs){document.getElementById(tabs[k]).style.display=(k===w)?'flex':'none';}const btns={dash:'tabBtnDash',topo:'tabBtnTopo',log:'tabBtnLog'};for(const k in btns){const on=(k===w);document.getElementById(btns[k]).style.background=on?'#0284c7':'#fff';document.getElementById(btns[k]).style.color=on?'#fff':'#0369a1';}if(w==='topo')drawTopo();if(w==='log'){renderAlarms();renderDowntime();markAlarmsRead();}}
 // ---- TOPOLOGI DUMMY (archify-style pastel) ----
-const ICONS={router:'Router',switch:'🔀',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
+const ICONS={router:'Router',switch:'🔀',swpoe:'🔀⚡',ont:'📟',ap:'📶',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
 function iconSvg(t){
 if(t==='router')return `<g transform="translate(0,-13)"><line x1="-13" y1="-6" x2="-17" y2="-18" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round"/><line x1="13" y1="-6" x2="17" y2="-18" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round"/><circle cx="-17" cy="-19" r="2" fill="#0284c7"/><circle cx="17" cy="-19" r="2" fill="#0284c7"/><rect x="-18" y="-8" width="36" height="15" rx="4" fill="#ffffff" stroke="#0284c7" stroke-width="2"/><rect x="-18" y="-8" width="36" height="5" rx="2.5" fill="#7dd3fc"/><circle cx="-11" cy="2" r="1.8" fill="#22c55e"/><circle cx="-5.5" cy="2" r="1.8" fill="#22c55e"/><circle cx="0" cy="2" r="1.8" fill="#22c55e"/><circle cx="5.5" cy="2" r="1.8" fill="#38bdf8"/><circle cx="11" cy="2" r="1.8" fill="#fbbf24"/></g>`;
 return null;
@@ -373,10 +373,10 @@ nodes:[
 {id:'rPu',icon:'router',label:'Router PU',sub:'BGP + IP publik',x:620,y:70,db:'Router PU'},
 {id:'rIctel',icon:'router',label:'Router Ictel',sub:'VLAN 31-40',x:770,y:70,db:'Router Ictel'},
 {id:'olt',icon:'server',label:'GPON / OLT',sub:'sebar ONT',x:770,y:200,db:'GPON / OLT'},
-{id:'ontK',icon:'server',label:'ONT Kampus',sub:'fiber OK',x:600,y:200,db:'ONT Kampus'},
-{id:'swR',icon:'switch',label:'SW Ruijie PoE',sub:'ke AP',x:430,y:200,db:'SW Ruijie PoE'},
-{id:'apA',icon:'pc',label:'AP A4.1',sub:'flapping',x:250,y:200,db:'AP A4.1'},
-{id:'apP',icon:'pc',label:'AP Pavilion 1',sub:'asrama',x:430,y:310,db:'AP Pavilion 1'},
+{id:'ontK',icon:'ont',label:'ONT Kampus',sub:'fiber OK',x:600,y:200,db:'ONT Kampus'},
+{id:'swR',icon:'swpoe',label:'SW Ruijie PoE',sub:'ke AP',x:430,y:200,db:'SW Ruijie PoE'},
+{id:'apA',icon:'ap',label:'AP A4.1',sub:'flapping',x:250,y:200,db:'AP A4.1'},
+{id:'apP',icon:'ap',label:'AP Pavilion 1',sub:'asrama',x:430,y:310,db:'AP Pavilion 1'},
 ],
 links:[['iforte','swForte','fo'],['swForte','swNoc','fo'],['swNoc','swSrv','fo'],['swSrv','rPu','fo'],['rPu','rIctel','fo'],['rIctel','olt','fo'],['olt','ontK','fo'],['ontK','swR','lan'],['swR','apA','lan'],['swR','apP','lan']]},
 kij:{label:'ICTEL KIJ',vb:'0 0 900 300',
@@ -384,8 +384,8 @@ nodes:[
 {id:'isp',icon:'internet',label:'ISP',sub:'uplink KIJ',x:90,y:150},
 {id:'swK',icon:'switch',label:'Switch ICTel',sub:'inti KIJ',x:290,y:150,db:'Switch ICTel'},
 {id:'oltK',icon:'server',label:'OLT',sub:'PON',x:490,y:150,db:'OLT KIJ'},
-{id:'ont1',icon:'server',label:'ONT-01',sub:'fiber OK',x:660,y:80,db:'ONT-01'},
-{id:'ont2',icon:'server',label:'ONT-02',sub:'fiber OK',x:660,y:220,db:'ONT-02'},
+{id:'ont1',icon:'ont',label:'ONT-01',sub:'fiber OK',x:660,y:80,db:'ONT-01'},
+{id:'ont2',icon:'ont',label:'ONT-02',sub:'fiber OK',x:660,y:220,db:'ONT-02'},
 {id:'ten1',icon:'pc',label:'Tenant A',sub:'user',x:815,y:80},
 {id:'ten2',icon:'pc',label:'Tenant B',sub:'user',x:815,y:220},
 ],
