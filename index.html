@@ -56,8 +56,9 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="label">Collector (live) <span id="collDot" title="status collector">⚪</span></div>
 <input id="collUrl" placeholder="http://localhost:8932" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px" onchange="try{localStorage.setItem('netmon-coll',this.value);}catch(e){}">
 <div style="font-size:11px;color:#64748b;margin-top:2px">device 🟢 = live dari collector</div>
-<div class="label">AI agent</div>
+<div class="label">AI agent <span id="aiStatus" style="font-weight:400;color:#64748b">belum dicek</span></div>
 <input id="aiKey" type="password" placeholder="API key (9Router / Gemini / dll)" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px" onchange="try{localStorage.setItem('netmon-ai-key',this.value);}catch(e){}">
+<div style="display:flex;gap:4px;margin-top:4px"><button onclick="testAiKey()" style="flex:1;border:0;background:#e0f2fe;color:#0369a1;border-radius:8px;padding:7px;font-weight:800;cursor:pointer;font-size:12px">Cek API</button><button onclick="document.getElementById('aiKey').value='';localStorage.removeItem('netmon-ai-key');setAiStatus('dihapus','#64748b')" style="border:0;background:#fee2e2;color:#b91c1c;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer;font-size:12px">Hapus</button></div>
 <input id="aiBase" placeholder="Base URL (kosongkan = 9Router)" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px;margin-top:4px" onchange="try{localStorage.setItem('netmon-ai-base',this.value);}catch(e){}">
 <input id="aiModel" placeholder="Model (kosongkan = auto-failover)" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px;margin-top:4px" onchange="try{localStorage.setItem('netmon-ai-model',this.value);}catch(e){}">
 <div style="font-size:11px;color:#64748b;margin-top:2px">key cuma di mesin ini • jangan bagikan dashboard ke sembarang orang</div>
@@ -489,6 +490,20 @@ try{pushAlarm('info','chat-ai','Q: '+msg.slice(0,60));}catch(e){}
 const box=document.getElementById('chatBox');if(box)box.scrollTop=box.scrollHeight;
 }
 function restoreAiFields(){try{const k=localStorage.getItem('netmon-ai-key');if(k&&document.getElementById('aiKey'))document.getElementById('aiKey').value=k;const b=localStorage.getItem('netmon-ai-base');if(b&&document.getElementById('aiBase'))document.getElementById('aiBase').value=b;const m=localStorage.getItem('netmon-ai-model');if(m&&document.getElementById('aiModel'))document.getElementById('aiModel').value=m;}catch(e){}}
+function setAiStatus(t,c){const s=document.getElementById('aiStatus');if(s){s.textContent=t;s.style.color=c||'#64748b';}}
+async function testAiKey(){
+const key=(document.getElementById('aiKey')?.value||localStorage.getItem('netmon-ai-key')||'').trim();
+if(!key){setAiStatus('key kosong','#b91c1c');return;}
+setAiStatus('mengecek...','#64748b');
+try{
+const base=(document.getElementById('aiBase')?.value||localStorage.getItem('netmon-ai-base')||'').trim();
+const model=(document.getElementById('aiModel')?.value||localStorage.getItem('netmon-ai-model')||'').trim();
+const r=await fetch(COLL()+'/api/ai-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({aiKey:key,aiBase:base,aiModel:model})});
+const j=await r.json();
+if(j.ok){setAiStatus('valid — '+(j.model||''),'#15803d');log('> API key valid');}
+else{setAiStatus('invalid: '+String(j.error||'').slice(0,60),'#b91c1c');log('> API key TIDAK valid: '+String(j.error||'').slice(0,80));}
+}catch(e){setAiStatus('gagal: '+String(e.message||e).slice(0,60),'#b91c1c');}
+}
 function showTab(w){const tabs={dash:'tab-dash',topo:'tab-topo',log:'tab-log'};for(const k in tabs){document.getElementById(tabs[k]).style.display=(k===w)?'flex':'none';}const btns={dash:'tabBtnDash',topo:'tabBtnTopo',log:'tabBtnLog'};for(const k in btns){const on=(k===w);document.getElementById(btns[k]).style.background=on?'#0284c7':'#fff';document.getElementById(btns[k]).style.color=on?'#fff':'#0369a1';}if(w==='topo'){renderLayerBtns();drawTopo();}if(w==='log'){renderAlarms();renderDowntime();markAlarmsRead();}}
 // ---- TOPOLOGI DUMMY (archify-style pastel) ----
 const ICONS={router:'Router',switch:'🔀',swpoe:'🔀⚡',ont:'📟',olt:'🖧',ap:'📶',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
