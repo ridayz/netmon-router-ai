@@ -20,7 +20,7 @@ Live file: `index.html` (alias `netmon-dummy.html`), single-file, Chart.js via C
 5. Error counter: CRC/FCS/collision/flap/last-change.
 6. **Router AI full-driven** (prinsip inti): alur = `Diagnosa → 1 arahan → Jalankan Arahan AI` + toggle auto-resolve.
    DILARANG tambah tombol aksi manual (flap/PoE/100M/enable manual) — semua physical action hanya atas arahan AI.
-7. Tab Topologi: SVG pastel, node draggable, **klik kanan node = ganti icon** (internet 🌐 / router vector box port pastel / switch 🔀 / switch PoE 🔀⚡ / ONT-modem 📟 / access point vector 4 antena pastel / PC 🖥 / server 🗄 / firewall 🧱), link warna media (FO orange, LAN biru), tambah/hapus node, reset posisi, IP publik via `api.ipify.org` fallback dummy.
+7. Tab Topologi: SVG pastel, node draggable, **klik kanan node = ganti icon** (internet 🌐 / router box port / switch box port pastel / switch PoE + petir / modem ONT 2 antena putih / OLT chassis / AP 4 antena / PC 🖥 / server 🗄 / firewall 🧱 — semua vector pastel kecuali PC/server/firewall/internet), link warna media (FO orange, LAN biru), tambah/hapus node, reset posisi, IP publik via `api.ipify.org` fallback dummy.
 8. Tab 🔔 Log/Alarm: event timestamp + severity (info/warn/crit) + filter + badge merah + bunyi opsional + bersihkan. Otomatis catat: DOWN (crit + jam mulai, throttle 20 dtk/device), UP-lagi-setelah-DOWN + durasinya (info), loss > 5% (warn), disable manual (crit), hasil diagnosa + eksekusi AI.
 9. Hidup kayak device asli: interface faulty (kabel-jelek/redaman-tinggi) flapping down-pulih sendiri tiap ~7 dtk; yang sehat blip langka; putus total/no-light tetap DOWN. Sidebar + status pill tampilkan durasi DOWN live (format "X dtk / X mnt X dtk / X jam X mnt"). Toggle "Simulasi realistis" di sidebar.
 
