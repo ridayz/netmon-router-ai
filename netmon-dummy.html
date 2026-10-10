@@ -453,7 +453,7 @@ try{const sv=JSON.parse(localStorage.getItem('netmon-topo-v1')||'null');if(sv&&s
 let TOPO=LAYERS[curLayer].nodes;
 let LINKS=LAYERS[curLayer].links;
 const TOPO_HOME={};for(const l in DEFAULT_LAYERS){TOPO_HOME[l]={};DEFAULT_LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
-function saveTopo(manual){snapTopo();persistTopo(manual);}
+function saveTopo(manual){snapTopo();persistTopo(manual);try{renderLayerBtns();}catch(e){}}
 function persistTopo(manual){try{const at=new Date().toLocaleString('id-ID',{hour12:false});localStorage.setItem('netmon-topo-v1',JSON.stringify({at,cur:curLayer,layers:LAYERS}));const st=document.getElementById('saveStat');if(st)st.textContent=(manual?'💾 Tersimpan ':'Autosave ')+at;if(manual){log('> projek topologi di-SAVE ('+at+')');pushAlarm('info','topologi','Projek topologi di-save');}}catch(e){if(manual)log('> SAVE gagal: '+e.message);}}
 let HIST=[],HI=-1;
 function snapTopo(){try{HIST=HIST.slice(0,HI+1);HIST.push(JSON.stringify({cur:curLayer,layers:LAYERS}));if(HIST.length>60)HIST.shift();HI=HIST.length-1;}catch(e){}updateUR();}
@@ -461,7 +461,7 @@ function updateUR(){const u=document.getElementById('btnUndo'),r=document.getEle
 function restoreTopo(){try{const s=JSON.parse(HIST[HI]);LAYERS=s.layers;if(s.cur&&LAYERS[s.cur])curLayer=s.cur;if(!LAYERS[curLayer])curLayer='pu';TOPO=LAYERS[curLayer].nodes;LINKS=LAYERS[curLayer].links;renderLayerBtns();drawTopo();persistTopo();}catch(e){log('> undo/redo gagal: '+e.message);}}
 function undoTopo(){if(HI>0){HI--;restoreTopo();updateUR();log('> ↩ undo');}}
 function redoTopo(){if(HI<HIST.length-1){HI++;restoreTopo();updateUR();log('> ⟳ redo');}}
-function renderLayerBtns(){const el=document.getElementById('layerBtns');if(!el)return;el.innerHTML='';Object.keys(LAYERS).forEach(k=>{const on=(k===curLayer);const b=document.createElement('button');b.style.cssText=`border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:${on?'#0284c7':'#fff'};color:${on?'#fff':'#0369a1'};${on?'':'border:2px solid #bae6fd;'}`;b.textContent=LAYERS[k].label||k;if(k!=='pu'&&k!=='kij'){const x=document.createElement('span');x.textContent=' ✕';x.title='hapus layer';x.style.cssText='margin-left:6px;color:#ef4444;cursor:pointer';x.onclick=(ev)=>{ev.stopPropagation();delLayer(k);};b.appendChild(x);}b.onclick=()=>setLayer(k);b.ondblclick=()=>renameLayer(k);b.title='klik: buka • 2x klik: rename';el.appendChild(b);});}
+function renderLayerBtns(){const el=document.getElementById('layerBtns');if(!el)return;el.innerHTML='';Object.keys(LAYERS).forEach(k=>{const on=(k===curLayer);const b=document.createElement('button');b.style.cssText=`border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:${on?'#0284c7':'#fff'};color:${on?'#fff':'#0369a1'};${on?'':'border:2px solid #bae6fd;'}`;b.textContent=(LAYERS[k].label||k)+' ('+LAYERS[k].nodes.length+')';if(k!=='pu'&&k!=='kij'){const x=document.createElement('span');x.textContent=' ✕';x.title='hapus layer';x.style.cssText='margin-left:6px;color:#ef4444;cursor:pointer';x.onclick=(ev)=>{ev.stopPropagation();delLayer(k);};b.appendChild(x);}b.onclick=()=>setLayer(k);b.ondblclick=()=>renameLayer(k);b.title='klik: buka • 2x klik: rename';el.appendChild(b);});}
 function renameLayer(k){const nl=prompt('Nama layer:',LAYERS[k].label||k);if(nl===null||!nl)return;LAYERS[k].label=nl;renderLayerBtns();saveTopo();log('> layer di-rename: '+nl);}
 function newLayer(){const nama=prompt('Nama layer baru:','Layer Baru');if(!nama) return;const key='c'+Date.now()%100000;LAYERS[key]={label:nama,vb:'0 0 900 400',areas:[],nodes:[],links:[]};TOPO_HOME[key]={};setLayer(key);saveTopo(true);log('> layer baru: '+nama);if(confirm('Langsung tambah device pertama by IP di layer "'+nama+'"?'))addNodeByIp();}
 function delLayer(k){if(k==='pu'||k==='kij')return;if(!confirm('Hapus layer "'+(LAYERS[k].label||k)+'" beserta isinya?'))return;delete LAYERS[k];if(curLayer===k)setLayer('pu');else{renderLayerBtns();}saveTopo(true);log('> layer dihapus: '+k);}
@@ -525,7 +525,7 @@ m.style.cssText=`position:fixed;left:${x}px;top:${y}px;background:#fff;border:2p
 m.innerHTML=`<div style="font-size:12px;font-weight:800;color:#0369a1;margin-bottom:6px">Node → ${id}</div>`
 +(n&&n.db&&DB[n.db]?`<button onclick="topoDiagnose('${id}')" style="width:100%;text-align:left;border:0;background:#e0f2fe;border-radius:8px;padding:8px;cursor:pointer;font-weight:800;color:#0369a1">🔍 AI Cek & Diagnosa</button><button onclick="topoFix('${id}')" style="width:100%;text-align:left;border:0;background:#059669;border-radius:8px;padding:8px;margin-top:4px;cursor:pointer;font-weight:800;color:#fff">⚡ AI Diagnosa + Fix</button><button onclick="cableFrom('${id}')" style="width:100%;text-align:left;border:0;background:#fff;border:2px solid #bae6fd;border-radius:8px;padding:8px;margin-top:4px;cursor:pointer;font-weight:800;color:#0369a1">🔌 Pasang kabel (pilih port)</button>${LIVE[n.db]?`<button onclick="topoDiscover('${id}')" style="width:100%;text-align:left;border:0;background:#fef9c3;border-radius:8px;padding:8px;margin-top:4px;cursor:pointer;font-weight:800;color:#a16207">📡 Discovery port</button>`:''}`:`<div style="font-size:12px;color:#64748b">node di luar monitoring</div>`)
 +`<div style="font-size:12px;font-weight:800;color:#0369a1;margin:6px 0 2px">Teks</div><button onclick="editTopoText('${id}')" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:7px;margin-top:3px;cursor:pointer">✎ Edit nama & sub-teks</button><div style="display:flex;gap:4px;margin-top:4px"><button onclick="setTopoFont('${id}',0.85)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:11px">A-</button><button onclick="setTopoFont('${id}',1)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:13px">A</button><button onclick="setTopoFont('${id}',1.25)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:15px">A+</button></div>`
-+`<div style="font-size:12px;font-weight:800;color:#0369a1;margin:6px 0 2px">Ganti icon</div><div style="display:flex;gap:4px"><select id="iconSel" style="flex:1;border:2px solid #bae6fd;border-radius:8px;padding:7px;font-size:13px;background:#f0f9ff;color:#0c4a6e"><optgroup label="Jaringan">${['router','switch','swpoe','firewall','internet'].map(k=>`<option value="${k}"${n.icon===k?' selected':''}>${ICONS[k]} ${k}</option>`).join('')}</optgroup><optgroup label="Perangkat">${['ont','olt','ap','pc','server'].map(k=>`<option value="${k}"${n.icon===k?' selected':''}>${ICONS[k]} ${k}</option>`).join('')}</optgroup></select><button onclick="applyIconSel('${id}')" style="border:0;background:#0284c7;color:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:800">✔</button></div>`+`<button onclick="delTopoNode('${id}')" style="width:100%;text-align:left;border:0;background:#fee2e2;border-radius:8px;padding:7px;margin-top:4px;cursor:pointer">🗑 hapus</button>`;
++`<div style="font-size:12px;font-weight:800;color:#0369a1;margin:6px 0 2px">Ganti icon</div><div style="display:flex;gap:4px"><select id="iconSel" style="flex:1;border:2px solid #bae6fd;border-radius:8px;padding:7px;font-size:13px;background:#f0f9ff;color:#0c4a6e"><optgroup label="Jaringan">${['router','switch','swpoe','firewall','internet'].map(k=>`<option value="${k}"${n.icon===k?' selected':''}>${ICONS[k]} ${k}</option>`).join('')}</optgroup><optgroup label="Perangkat">${['ont','olt','ap','pc','server'].map(k=>`<option value="${k}"${n.icon===k?' selected':''}>${ICONS[k]} ${k}</option>`).join('')}</optgroup></select><button onclick="applyIconSel('${id}')" style="border:0;background:#0284c7;color:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:800">✔</button></div>`+`<button onclick="moveNode('${id}')" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:7px;margin-top:4px;cursor:pointer">📦 Pindah layer</button>`+`<button onclick="delTopoNode('${id}')" style="width:100%;text-align:left;border:0;background:#fee2e2;border-radius:8px;padding:7px;margin-top:4px;cursor:pointer">🗑 hapus</button>`;
 document.body.appendChild(m);setTimeout(()=>document.addEventListener('click',()=>m.remove(),{once:true}),50);
 }
 function applyIconSel(id){const s=document.getElementById('iconSel');if(s&&s.value)setTopoIcon(id,s.value);}
@@ -688,6 +688,21 @@ try{pushAlarm('info','topologi/'+n.db,'AI diagnosa + fix dari peta topologi');}c
 showTab('dash');
 try{aiDiagnose();}catch(e){}
 setTimeout(()=>{try{runAiPlan();}catch(e){}},1600);
+}
+function moveNode(id){
+document.getElementById('tmenu')?.remove();
+const n=topoNode(id);if(!n)return;
+const keys=Object.keys(LAYERS).filter(k=>k!==curLayer);
+if(!keys.length){alert('Tidak ada layer lain');return;}
+const s=prompt('Pindah "'+n.label+'" ke layer:\n'+keys.map((k,i)=>(i+1)+'. '+LAYERS[k].label+' ('+LAYERS[k].nodes.length+' node)').join('\n')+'\n\nKetik nomor:');
+if(!s)return;const t=LAYERS[keys[parseInt(s,10)-1]];if(!t){alert('Pilihan tidak ada');return;}
+LAYERS[curLayer].nodes=LAYERS[curLayer].nodes.filter(x=>x.id!==id);
+LAYERS[curLayer].links=LAYERS[curLayer].links.filter(([a,b])=>a!==id&&b!==id);
+t.nodes.push(n);
+if(t.nodes.length>1)t.links.push([t.nodes[0].id,id,'lan']);
+TOPO=LAYERS[curLayer].nodes;LINKS=LAYERS[curLayer].links;
+drawTopo();saveTopo();renderLayerBtns();
+log('> '+n.label+' pindah ke layer '+t.label);
 }
 function setTopoIcon(id,icon){const n=topoNode(id);if(n){n.icon=icon;}document.getElementById('tmenu')?.remove();drawTopo();saveTopo();}
 function delTopoNode(id){TOPO=TOPO.filter(n=>n.id!==id);LINKS=LINKS.filter(([a,b])=>a!==id&&b!==id);drawTopo();saveTopo();}
