@@ -80,6 +80,11 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div style="display:flex;gap:8px;margin-top:8px">
 <button class="ai-btn ghost" onclick="log('> hint: semua aksi hanya via Diagnosa → Jalankan Arahan AI')">Semua aksi via AI</button>
 </div>
+<div style="margin-top:10px;background:#f0f9ff;border:2px solid #bae6fd;border-radius:12px;padding:10px">
+<div class="label" style="margin-top:0">Komplain wifi → AI Solver</div>
+<div style="display:flex;gap:6px;margin-top:6px"><input id="cmplain" class="mock-input" placeholder="cth: A4.1 ga bisa internet" style="flex:1;border:2px solid #bae6fd;border-radius:10px;padding:8px 10px;font-size:13px" onkeydown="if(event.key==='Enter')aiComplaint()"><button class="ai-btn" style="width:auto;padding:8px 14px;margin:0" onclick="aiComplaint()">🚨 Cek</button></div>
+<div class="ai-box" id="cmplainOut" style="margin-top:8px">Tulis lokasi komplain (cth: A4.1 / Pavilion 2 / NBH 1), AI telusuri rantainya: AP → switch → ONT → VLAN/DHCP → NAT → uplink.</div>
+</div>
 <div class="log" id="log">> AI standby...\n</div>
 </div>
 </div>
@@ -90,6 +95,11 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 </div><!-- /tab-dash -->
 <div id="tab-topo" style="display:none;flex-direction:column;gap:12px">
 <div class="panel"><h3>🗺 Topologi — berdasar IP Publik (dummy, gaya archify pastel)</h3>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;margin-bottom:8px">
+<span class="label" style="margin:0">Layer:</span>
+<button id="layerPu" onclick="setLayer('pu')" style="border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff">Manage ICTel PU</button>
+<button id="layerKij" onclick="setLayer('kij')" style="border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:#fff;color:#0369a1;border:2px solid #bae6fd">ICTEL KIJ</button>
+</div>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px">
 <span>IP Publik: <b id="pubIp">203.0.113.10 (dummy)</b></span>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="detectPubIp()">🌐 Deteksi IP-ku</button>
@@ -218,6 +228,38 @@ window._aiPlan=plan;
 document.getElementById('aiText').textContent=txt+(plan?`\n\n➡ ARAHAN AI: ${plan.label}\nKlik "Jalankan Arahan AI".`:`\n\n➡ Tidak ada aksi.`);
 log('> AI selesai: '+c.fault+(plan?' → arahan: '+plan.label:''));try{pushAlarm(plan?'warn':'info',curR+'/'+c.n,'AI diagnosa: '+c.fault+(plan?' → '+plan.label:' (sehat)'));}catch(e){}
 }
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+function aiComplaint(){
+const loc=(document.getElementById('cmplain').value||'').trim()||'A4.1';
+const out=document.getElementById('cmplainOut');
+const h=hashStr(loc.toLowerCase());
+const vlan=31+(h%10);
+const scen=['dhcp-full','ssid-overload','conntrack','channel-sesak','ont-rx','sehat'][h%6];
+log('> KOMPLAIN: wifi "'+loc+'" ga bisa internet → AI telusuri rantai...');
+pushAlarm('warn','komplain/'+loc,'Komplain wifi "'+loc+'" — AI mulai telusuri rantai');
+out.textContent='🔍 AI telusuri rantai "'+loc+'" (VLAN '+vlan+')...\n• AP → switch → ONT → VLAN/DHCP → NAT → uplink';
+const steps=[
+['AP '+loc,'client '+(38+h%60)+', SSID/radio '+(scen==='ssid-overload'?(12+h%6):(3+h%3))+', ch-util '+(scen==='channel-sesak'?(78+h%15):(35+h%25))+'%',scen==='ssid-overload'?'PROBLEM':(scen==='channel-sesak'?'PROBLEM':'OK')],
+['SW Ruijie PoE','PoE '+(scen==='ont-rx'?'normal':'normal')+', err 0',scen==='ont-rx'?'OK':'OK'],
+['ONT lokasi','RX '+(scen==='ont-rx'?('-'+(26+h%3))+'.'+(h%9):('-'+(17+h%4))+'.'+(h%9))+' dBm',scen==='ont-rx'?'PROBLEM':'OK'],
+['VLAN '+vlan+' DHCP','pool '+(scen==='dhcp-full'?(94+h%5):(40+h%30))+'% terpakai',scen==='dhcp-full'?'PROBLEM':'OK'],
+['Router Ictel NAT','conntrack '+(scen==='conntrack'?(93+h%5):(45+h%20))+'%',scen==='conntrack'?'PROBLEM':'OK'],
+['Uplink 500M','down 412M / up 96M',scen==='conntrack'?'WARN':'OK'],
+];
+steps.forEach((s,i)=>setTimeout(()=>{out.textContent+='\n'+(s[2]==='OK'?'✅':(s[2]==='WARN'?'⚠':'❌'))+' '+s[0]+': '+s[1]+' → '+s[2];},500*(i+1)));
+setTimeout(()=>{
+const fix={'dhcp-full':['DHCP VLAN '+vlan+' penuh ('+((94+h%5))+'%) — HP baru gagal lease.','Perluas pool /23 + lease-time 4 jam + tiket NOC.','tiket-dhcp'],
+'ssid-overload':['AP '+loc+' megang '+(12+h%6)+' SSID — airtime habis buat beacon, upload 0.','Gabung SSID per gedung + VLAN via RADIUS + tiket NOC.','tiket-ssid'],
+'conntrack':['NAT Router Ictel '+(93+h%5)+'% — session upload baru gagal duluan.','Naikkan conntrack-max + fair-queue upload + pantau 1 jam.','conntrack-fix'],
+'channel-sesak':['Channel AP '+loc+' '+(78+h%15)+'% — tabrakan antar AP asrama.','Retune channel + turunkan TX power + tiket survei.','tiket-rf'],
+'ont-rx':['RX ONT lokasi -'+(26+h%3)+' dBm — redaman gede, link putus-nyambung.','Cek konektor/bending/patchcord + tiket fiber.','tiket-fiber'],
+'sehat':['Rantai "'+loc+'" sehat semua — kemungkinan device user / password salah.','Minta user restart wifi + cek portal login.','info-user']}[scen];
+out.textContent+='\n\n🎯 VONIS: '+fix[0]+'\n➡ ARAHAN AI: '+fix[1];
+log('> AI vonis "'+loc+'": '+fix[0]);
+pushAlarm(scen==='sehat'?'info':'crit','komplain/'+loc,'Vonis: '+fix[0]);
+pushAlarm('info','komplain/'+loc,'Tiket dibuat → '+fix[1]);
+},500*(steps.length+1));
+}
 function runAiPlan(){
 const c=cur();const plan=window._aiPlan;
 if(!plan){log('> tidak ada arahan AI. Diagnosa dulu.');return;}
@@ -270,27 +312,47 @@ function iconSvg(t){
 if(t==='router')return `<g transform="translate(0,-13)"><line x1="-13" y1="-6" x2="-17" y2="-18" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round"/><line x1="13" y1="-6" x2="17" y2="-18" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round"/><circle cx="-17" cy="-19" r="2" fill="#0284c7"/><circle cx="17" cy="-19" r="2" fill="#0284c7"/><rect x="-18" y="-8" width="36" height="15" rx="4" fill="#ffffff" stroke="#0284c7" stroke-width="2"/><rect x="-18" y="-8" width="36" height="5" rx="2.5" fill="#7dd3fc"/><circle cx="-11" cy="2" r="1.8" fill="#22c55e"/><circle cx="-5.5" cy="2" r="1.8" fill="#22c55e"/><circle cx="0" cy="2" r="1.8" fill="#22c55e"/><circle cx="5.5" cy="2" r="1.8" fill="#38bdf8"/><circle cx="11" cy="2" r="1.8" fill="#fbbf24"/></g>`;
 return null;
 }
-let TOPO=[
-{id:'inet',icon:'internet',label:'IP Publik',sub:'203.0.113.10',x:80,y:90},
-{id:'fw',icon:'firewall',label:'Firewall',sub:'edge',x:230,y:90},
-{id:'ra',icon:'router',label:'Router A',sub:'10.0.1.1',x:380,y:90},
-{id:'rb',icon:'router',label:'Router B',sub:'10.0.2.1',x:380,y:230},
-{id:'sa',icon:'switch',label:'Switch A',sub:'LAN',x:540,y:90},
-{id:'srv',icon:'server',label:'Server',sub:'10.0.1.10',x:700,y:50},
-{id:'pc',icon:'pc',label:'PC Office',sub:'10.0.1.21',x:700,y:130},
-{id:'cctv',icon:'pc',label:'CCTV',sub:'DOWN',x:700,y:210,st:'bad'},
-];
-let LINKS=[['inet','fw'],['fw','ra'],['ra','rb'],['ra','sa'],['sa','srv'],['sa','pc'],['sa','cctv']];
+const LAYERS={
+pu:{label:'Manage ICTel PU',vb:'0 0 920 400',
+nodes:[
+{id:'iforte',icon:'internet',label:'IForte / ISP',sub:'uplink 500M',x:80,y:70},
+{id:'swForte',icon:'switch',label:'Switch Iforte',sub:'edge',x:215,y:70},
+{id:'swNoc',icon:'switch',label:'SW Ictel NOC',sub:'area NOC',x:350,y:70},
+{id:'swSrv',icon:'switch',label:'SW Srv PU',sub:'server PU',x:485,y:70},
+{id:'rPu',icon:'router',label:'Router PU',sub:'BGP + IP publik',x:620,y:70},
+{id:'rIctel',icon:'router',label:'Router Ictel',sub:'VLAN 31-40',x:770,y:70},
+{id:'olt',icon:'server',label:'GPON / OLT',sub:'sebar ONT',x:770,y:200},
+{id:'ontK',icon:'server',label:'ONT Kampus',sub:'fiber OK',x:600,y:200},
+{id:'swR',icon:'switch',label:'SW Ruijie PoE',sub:'ke AP',x:430,y:200},
+{id:'apA',icon:'pc',label:'AP A4.1',sub:'flapping',x:250,y:200,st:'bad'},
+{id:'apP',icon:'pc',label:'AP Pavilion 1',sub:'asrama',x:430,y:310},
+],
+links:[['iforte','swForte'],['swForte','swNoc'],['swNoc','swSrv'],['swSrv','rPu'],['rPu','rIctel'],['rIctel','olt'],['olt','ontK'],['ontK','swR'],['swR','apA'],['swR','apP']]},
+kij:{label:'ICTEL KIJ',vb:'0 0 900 300',
+nodes:[
+{id:'isp',icon:'internet',label:'ISP',sub:'uplink KIJ',x:90,y:150},
+{id:'swK',icon:'switch',label:'Switch ICTel',sub:'inti KIJ',x:290,y:150},
+{id:'oltK',icon:'server',label:'OLT',sub:'PON',x:490,y:150},
+{id:'ont1',icon:'server',label:'ONT-01',sub:'fiber OK',x:660,y:80},
+{id:'ont2',icon:'server',label:'ONT-02',sub:'fiber OK',x:660,y:220},
+{id:'ten1',icon:'pc',label:'Tenant A',sub:'user',x:815,y:80},
+{id:'ten2',icon:'pc',label:'Tenant B',sub:'user',x:815,y:220},
+],
+links:[['isp','swK'],['swK','oltK'],['oltK','ont1'],['oltK','ont2'],['ont1','ten1'],['ont2','ten2']]}};
+let curLayer='pu';
+let TOPO=LAYERS.pu.nodes;
+let LINKS=LAYERS.pu.links;
+function setLayer(l){curLayer=l;TOPO=LAYERS[l].nodes;LINKS=LAYERS[l].links;document.getElementById('layerPu').style.background=l==='pu'?'#0284c7':'#fff';document.getElementById('layerPu').style.color=l==='pu'?'#fff':'#0369a1';document.getElementById('layerKij').style.background=l==='kij'?'#0284c7':'#fff';document.getElementById('layerKij').style.color=l==='kij'?'#fff':'#0369a1';log('> layer topologi: '+LAYERS[l].label);drawTopo();}
 function topoNode(id){return TOPO.find(n=>n.id===id);}
 function drawTopo(){
 const svg=document.getElementById('topoSvg');const W=svg.clientWidth||900;
-svg.setAttribute('viewBox',`0 0 860 300`);
+svg.setAttribute('viewBox',LAYERS[curLayer].vb);
 svg.innerHTML='';
 LINKS.forEach(([a,b])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',B.st==='bad'?'#f87171':'#38bdf8');l.setAttribute('stroke-width',B.st==='bad'?'3':'2.5');if(B.st==='bad')l.setAttribute('stroke-dasharray','7 5');svg.appendChild(l);});
 TOPO.forEach(n=>{
 const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('transform',`translate(${n.x},${n.y})`);g.style.cursor='grab';
 g.innerHTML=`<rect x="-62" y="-30" width="124" height="60" rx="16" fill="${n.st==='bad'?'#fee2e2':'#ffffff'}" stroke="${n.st==='bad'?'#f87171':'#7dd3fc'}" stroke-width="2.5"/>${n.icon==='router'?iconSvg('router'):`<text y="0" text-anchor="middle" font-size="22">${ICONS[n.icon]||'📦'}</text>`}<text y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">${n.label}</text><text y="26" text-anchor="middle" font-size="9" fill="#64748b">${n.sub||''}</text>`;
-g.addEventListener('pointerdown',ev=>{g.setPointerCapture(ev.pointerId);const move=e2=>{const r=svg.getBoundingClientRect();const vx=860/r.width;n.x=Math.round((e2.clientX-r.left)*vx);n.y=Math.round((e2.clientY-r.top)*(300/r.height));g.setAttribute('transform',`translate(${n.x},${n.y})`);};const up=()=>{g.removeEventListener('pointermove',move);drawTopo();};g.addEventListener('pointermove',move);g.addEventListener('pointerup',up,{once:true});});
+g.addEventListener('pointerdown',ev=>{g.setPointerCapture(ev.pointerId);const move=e2=>{const r=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const vx=vb.width/r.width;n.x=Math.round((e2.clientX-r.left)*vx);n.y=Math.round((e2.clientY-r.top)*(vb.height/r.height));g.setAttribute('transform',`translate(${n.x},${n.y})`);};const up=()=>{g.removeEventListener('pointermove',move);drawTopo();};g.addEventListener('pointermove',move);g.addEventListener('pointerup',up,{once:true});});
 g.addEventListener('contextmenu',ev=>{ev.preventDefault();topoMenu(ev.clientX,ev.clientY,n.id);});
 svg.appendChild(g);});
 document.getElementById('topoList').textContent=`${TOPO.length} perangkat dummy • ${LINKS.length} link • kanan-klik node untuk ganti icon`;
