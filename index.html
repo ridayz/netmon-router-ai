@@ -157,11 +157,11 @@ const DB = {
  {n:'to-olt',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
 ],
 'GPON / OLT': [
- {n:'pon1-kampus',type:'sfp',admin:'up',oper:'down',fault:'no-light',poe:'-',speed:'10G'},
+ {n:'pon1-kampus',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
  {n:'pon2-asrama',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
 ],
 'ONT Kampus': [
- {n:'eth1-ap',type:'copper',admin:'up',oper:'down',fault:'putus-23m',poe:'0W',speed:'1G'},
+ {n:'eth1-ap',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'12W',speed:'1G'},
 ],
 'SW Ruijie PoE': [
  {n:'port-ap-A41',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'15W',speed:'1G'},
@@ -380,8 +380,8 @@ pu:{label:'Manage ICTel PU',vb:'0 0 980 440',
 areas:[
 {label:'Area Server ICTel',x:5,y:18,w:280,h:116},
 {label:'Area Server ICTel',x:450,y:178,w:310,h:116},
-{label:'Area Server President University',x:300,y:18,w:440,h:116},
-{label:'Area Publik / Kampus / Asrama',x:100,y:180,w:300,h:220},
+{label:'Area Server President University',x:300,y:18,w:450,h:116},
+{label:'Area Publik / Kampus / Asrama',x:100,y:180,w:330,h:220},
 ],
 nodes:[
 {id:'iforte',icon:'internet',label:'IForte / ISP',sub:'uplink 500M',x:70,y:70},
