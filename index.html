@@ -56,6 +56,11 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="label">Collector (live) <span id="collDot" title="status collector">⚪</span></div>
 <input id="collUrl" placeholder="http://localhost:8932" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px" onchange="try{localStorage.setItem('netmon-coll',this.value);}catch(e){}">
 <div style="font-size:11px;color:#64748b;margin-top:2px">device 🟢 = live dari collector</div>
+<div style="display:flex;gap:6px;margin-top:8px">
+<button onclick="setAutoCare()" id="autoCareBtn" style="flex:1;border:2px solid #bae6fd;background:#fff;color:#0369a1;border-radius:10px;padding:8px;font-weight:800;cursor:pointer;font-size:12px">🤖 Auto-Care</button>
+<span id="autoCareState" style="align-self:center;font-size:11px;color:#64748b">OFF</span>
+</div>
+<div style="font-size:11px;color:#64748b">aman: enable access, flap, PoE cycle. kabel/SFP tetap tiket.</div>
 </div>
 <div class="main">
 <div class="topbar"><div><h1 id="title">-</h1><p>Dummy + Diagnosa Layer 1 (copper TDR + SFP DDM) • pastel biru awan</p></div><div style="display:flex;gap:8px;align-items:center"><div class="pill" id="statusPill">●</div>
@@ -374,6 +379,54 @@ document.getElementById('dl').textContent=(dMb||0).toFixed(1)+' Mbps 🟢';
 document.getElementById('ul').textContent=(uMb||0).toFixed(1)+' Mbps 🟢';
 L._err=0;
 }catch(e){try{const L=LIVE[curR];if(L){L._err=(L._err||0)+1;if(L._err===4)log('> live '+curR+' putus: '+e.message+' (cek collector)');}}catch(_){}}},3000);
+// ---- AUTO-CARE: pantau semua device LIVE, kerjakan aksi aman, yang fisik jadi tiket ----
+let AC={on:false,lastAct:{},seen:{},timer:null};
+function setAutoCare(){
+  AC.on=!AC.on;
+  const b=document.getElementById('autoCareBtn');if(b){b.style.background=AC.on?'#059669':'#fff';b.style.color=AC.on?'#fff':'#0369a1';b.style.borderColor=AC.on?'#059669':'#bae6fd';}
+  const s=document.getElementById('autoCareState');if(s)s.textContent=AC.on?'AMAN-AKTIF':'OFF';
+  if(AC.on){log('> Auto-Care ON (enable access + flap + PoE; fisik=tiket; cooldown 30 dtk)');pushAlarm('info','autocare','Auto-Care AKTIF');acTick();}
+  else{log('> Auto-Care OFF — kill switch');pushAlarm('info','autocare','Auto-Care dimatikan');if(AC.timer){clearTimeout(AC.timer);AC.timer=null;}}
+}
+function isUplinkName(n){return /isp|wan|uplink|bgp|internet|core|olt|pon|server/i.test(n||'');}
+async function acTick(){
+  if(!AC.on)return;
+  try{
+    for(const key in LIVE){
+      const L=LIVE[key];if(!L||!L.ip)continue;
+      const j=await collGet(`/api/status?ip=${L.ip}&user=${encodeURIComponent(L.user||'')}&pass=${encodeURIComponent(L.pass||'')}`,8000);
+      if(!j.ok)continue;
+      const now=Date.now();
+      for(const f of (j.ifaces||[])){
+        const idk=key+'/'+f.name;
+        if(f.oper==='up'){AC.seen[idk]=null;continue;}
+        // oper DOWN
+        if(isUplinkName(f.name)){ // core/olt/pon/server → tiket fisik, jangan sentuh
+          if(!AC.seen[idk]||now-AC.seen[idk]>5*60000){AC.seen[idk]=now;pushAlarm('warn',idk,'DOWN di uplink/core — Auto-Care NOLAK (fisik), tiket teknisi dibuat');log(`> Auto-Care: ${idk} DOWN di uplink → tiket, nggak diutak-atik`);}
+          continue;
+        }
+        // access port yang down
+        const adminDown=f.admin==='down';
+        if(!AC.seen[idk]){AC.seen[idk]=now;continue;}
+        const dur=now-AC.seen[idk];
+        if(dur<20000)continue; // tunggu 20 dtk biar nggak flap berulang
+        const last=AC.lastAct[idk]||0;
+        if(now-last<30000)continue; // cooldown
+        AC.lastAct[idk]=now;
+        // aksi aman: enable (human-error) — disable tidak pernah
+        try{
+          await collGet(`/api/discover?ip=${L.ip}&user=${encodeURIComponent(L.user||'')}&pass=${encodeURIComponent(L.pass||'')}`,15000); // keepalive
+          const r=await fetch(COLL()+'/api/ai-act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket:'AC-'+idk})});
+          if(r.ok){const jj=await r.json();if(jj.ok){pushAlarm('info',idk,`Auto-Care: enable ${f.name} (aman)`);log(`> Auto-Care: ${idk} enable (down ${Math.round(dur/1000)} dtk)`);continue;}}
+        }catch(e){}
+        // kalau enable nggak jalan / device tanpa tulis → tiket
+        pushAlarm('warn',idk,`Auto-Care: ${f.name} masih DOWN ${Math.round(dur/1000)} dtk — cek kabel/SFP (tiket)`);
+        log(`> Auto-Care: ${idk} masih down → tiket fisik`);
+      }
+    }
+  }catch(e){log('> Auto-Care tick err: '+String(e.message||e).slice(0,80));}
+  if(AC.on)AC.timer=setTimeout(acTick,10000);
+}
 restoreLive();
 renderRouters();
 // catat awal DOWN untuk interface yang mulai dalam keadaan down (biar durasinya jalan dari load)
