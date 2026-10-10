@@ -101,7 +101,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <span id="layerBtns" style="display:flex;gap:6px;flex-wrap:wrap"></span>
 <button onclick="newLayer()" style="border:2px dashed #0284c7;background:#fff;color:#0284c7;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">＋ Layer Baru</button>
 <button onclick="saveTopo(true)" style="border:0;background:#059669;color:#fff;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">💾 Save</button>
-<button onclick="exportTopo()" class="ai-btn ghost" style="width:auto;padding:7px 12px">⬇ Export</button>
+<button onclick="exportPNG()" style="border:0;background:#0284c7;color:#fff;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">🖼 Export PNG</button>
 <button onclick="document.getElementById('importTopo').click()" class="ai-btn ghost" style="width:auto;padding:7px 12px">⬆ Import</button>
 <input type="file" id="importTopo" accept=".json" style="display:none" onchange="importTopo(this)">
 <span id="saveStat" style="font-size:12px;color:#64748b"></span>
@@ -381,7 +381,7 @@ if(t==='swpoe')return iconSvg('switch').replace('</g>','<path d="M15,-24 l-6,9 h
 return null;
 }
 const DEFAULT_LAYERS={
-pu:{label:'Manage ICTel PU',vb:'0 0 980 440',
+pu:{label:'Manage President University',vb:'0 0 980 440',
 areas:[
 {label:'Area Server ICTel',x:5,y:18,w:280,h:116},
 {label:'Area Server ICTel',x:450,y:178,w:310,h:116},
@@ -415,7 +415,7 @@ nodes:[
 links:[['isp','swK','fo'],['swK','oltK','fo'],['oltK','ont1','fo'],['oltK','ont2','fo'],['ont1','ten1','lan'],['ont2','ten2','lan']]}};
 let curLayer='pu';
 let LAYERS=JSON.parse(JSON.stringify(DEFAULT_LAYERS));
-try{const sv=JSON.parse(localStorage.getItem('netmon-topo-v1')||'null');if(sv&&sv.layers&&sv.layers.pu&&sv.layers.kij){LAYERS=sv.layers;if(sv.cur&&LAYERS[sv.cur])curLayer=sv.cur;setTimeout(()=>{const st=document.getElementById('saveStat');if(st)st.textContent='Projek dimuat (tersimpan '+(sv.at||'?')+')';},300);}}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem('netmon-topo-v1')||'null');if(sv&&sv.layers&&sv.layers.pu&&sv.layers.kij){LAYERS=sv.layers;if(LAYERS.pu.label==='Manage ICTel PU')LAYERS.pu.label='Manage President University';if(sv.cur&&LAYERS[sv.cur])curLayer=sv.cur;setTimeout(()=>{const st=document.getElementById('saveStat');if(st)st.textContent='Projek dimuat (tersimpan '+(sv.at||'?')+')';},300);}}catch(e){}
 let TOPO=LAYERS[curLayer].nodes;
 let LINKS=LAYERS[curLayer].links;
 const TOPO_HOME={};for(const l in DEFAULT_LAYERS){TOPO_HOME[l]={};DEFAULT_LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
@@ -423,7 +423,24 @@ function saveTopo(manual){try{const at=new Date().toLocaleString('id-ID',{hour12
 function renderLayerBtns(){const el=document.getElementById('layerBtns');if(!el)return;el.innerHTML='';Object.keys(LAYERS).forEach(k=>{const on=(k===curLayer);const b=document.createElement('button');b.style.cssText=`border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:${on?'#0284c7':'#fff'};color:${on?'#fff':'#0369a1'};${on?'':'border:2px solid #bae6fd;'}`;b.textContent=LAYERS[k].label||k;if(k!=='pu'&&k!=='kij'){const x=document.createElement('span');x.textContent=' ✕';x.title='hapus layer';x.style.cssText='margin-left:6px;color:#ef4444;cursor:pointer';x.onclick=(ev)=>{ev.stopPropagation();delLayer(k);};b.appendChild(x);}b.onclick=()=>setLayer(k);el.appendChild(b);});}
 function newLayer(){const nama=prompt('Nama layer baru:','Layer Baru');if(!nama) return;const key='c'+Date.now()%100000;LAYERS[key]={label:nama,vb:'0 0 900 400',areas:[],nodes:[],links:[]};TOPO_HOME[key]={};setLayer(key);saveTopo(true);log('> layer baru: '+nama);}
 function delLayer(k){if(k==='pu'||k==='kij')return;if(!confirm('Hapus layer "'+(LAYERS[k].label||k)+'" beserta isinya?'))return;delete LAYERS[k];if(curLayer===k)setLayer('pu');else{renderLayerBtns();}saveTopo(true);log('> layer dihapus: '+k);}
-function exportTopo(){try{const blob=new Blob([JSON.stringify({app:'netmon-topologi',at:new Date().toISOString(),layers:LAYERS},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='netmon-topologi.json';a.click();log('> projek di-export ke netmon-topologi.json');}catch(e){log('> export gagal: '+e.message);}}
+function exportPNG(){try{
+const svg=document.getElementById('topoSvg');
+const vb=svg.viewBox.baseVal;const scale=2;
+const xml=new XMLSerializer().serializeToString(svg);
+const url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));
+const img=new Image();
+img.onload=()=>{try{
+const cv=document.createElement('canvas');cv.width=Math.round(vb.width*scale);cv.height=Math.round(vb.height*scale);
+const cx=cv.getContext('2d');
+const gr=cx.createLinearGradient(0,0,0,cv.height);gr.addColorStop(0,'#e0f2fe');gr.addColorStop(1,'#ffffff');
+cx.fillStyle=gr;cx.fillRect(0,0,cv.width,cv.height);
+cx.drawImage(img,0,0,cv.width,cv.height);
+URL.revokeObjectURL(url);
+cv.toBlob(b=>{if(!b){log('> export PNG gagal');return;}const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='topologi-'+curLayer+'.png';a.click();log('> topologi di-export PNG ('+cv.width+'x'+cv.height+')');try{pushAlarm('info','topologi','Export PNG '+a.download);}catch(e){}});
+}catch(e){log('> export PNG gagal: '+e.message);}};
+img.onerror=()=>log('> export PNG gagal render');
+img.src=url;
+}catch(e){log('> export PNG gagal: '+e.message);}}
 function importTopo(inp){const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);const ls=d.layers||d;if(!ls.pu||!ls.kij)throw new Error('format bukan projek netmon');LAYERS=ls;if(!LAYERS[curLayer])curLayer='pu';TOPO=LAYERS[curLayer].nodes;LINKS=LAYERS[curLayer].links;setLayer(curLayer);saveTopo(true);log('> projek di-import dari '+f.name);}catch(e){log('> import gagal: '+e.message);alert('Import gagal: '+e.message);}};rd.readAsText(f);inp.value='';}
 renderLayerBtns();
 function resetTopo(){for(const l in LAYERS){LAYERS[l].nodes.forEach(n=>{const h=(TOPO_HOME[l]||{})[n.id];if(h){n.x=h.x;n.y=h.y;}});}drawTopo();saveTopo();log('> topologi dikembalikan ke posisi semula');try{pushAlarm('info','topologi','Posisi node dikembalikan ke semula');}catch(e){}}
