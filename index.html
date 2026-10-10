@@ -48,7 +48,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="app">
 <div class="sidebar">
 <div class="logo">☁️ NetMonitor</div>
-<div class="label">Pilih Router</div><div id="routers"></div>
+<div class="label">Pilih Perangkat (ikut topologi)</div><div id="routers"></div>
 <div class="label">Interface <span style="font-weight:400;text-transform:none">(klik kanan = disable/enable)</span></div><div id="ifaces" style="display:flex;flex-direction:column;gap:8px"></div>
 <div class="label">Legenda</div>
 <div style="font-size:12px;color:#64748b">🟢 up &nbsp; 🔴 gangguan &nbsp; ⚪ down / disable</div>
@@ -131,34 +131,69 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 </div>
 </div>
 <script>
-// ---- DATA DUMMY per interface ----
+// ---- DATA DUMMY per perangkat (SAMA dengan node topologi PU + KIJ) ----
 const DB = {
-'Router A': [
- {n:'ether1-WAN',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
- {n:'ether2-LAN',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
- {n:'ether3-AP',type:'copper',admin:'up',oper:'up',fault:'kabel-jelek',poe:'-',speed:'1G'},
- {n:'ether4-CCTV',type:'copper',admin:'up',oper:'down',fault:'putus-23m',poe:'0W',speed:'1G'},
- {n:'sfp1-Fiber',type:'sfp',admin:'up',oper:'up',fault:'redaman-tinggi',poe:'-',speed:'1G'},
+// ===== LAYER: Manage ICTel PU =====
+'Router PU': [
+ {n:'uplink-BGP',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
+ {n:'to-srvPU',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
 ],
-'Router B': [
- {n:'ether1-WAN2',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
- {n:'ether2-Office',type:'copper',admin:'down',oper:'down',fault:'disabled-human',poe:'-',speed:'1G'},
- {n:'sfp1-Uplink',type:'sfp',admin:'up',oper:'down',fault:'no-light',poe:'-',speed:'10G'},
+'Router Ictel': [
+ {n:'vlan34-asrama',type:'copper',admin:'up',oper:'up',fault:'kabel-jelek',poe:'-',speed:'1G'},
+ {n:'vlan31-kampus',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+ {n:'to-noc',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
 ],
-'Router C': [
- {n:'ether1-Pusat',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
- {n:'sfp1-Cabang',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
-]};
-let curR='Router A', curI='ether4-CCTV';
+'SW Ictel NOC': [
+ {n:'to-gpon',type:'sfp',admin:'up',oper:'up',fault:'redaman-tinggi',poe:'-',speed:'1G'},
+ {n:'to-srvPU',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+],
+'GPON / OLT': [
+ {n:'pon1-kampus',type:'sfp',admin:'up',oper:'down',fault:'no-light',poe:'-',speed:'10G'},
+ {n:'pon2-asrama',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
+],
+'ONT Kampus': [
+ {n:'eth1-ap',type:'copper',admin:'up',oper:'down',fault:'putus-23m',poe:'0W',speed:'1G'},
+],
+'SW Ruijie PoE': [
+ {n:'port-ap-A41',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'15W',speed:'1G'},
+ {n:'port-ap-Pav1',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'12W',speed:'1G'},
+],
+'AP A4.1': [
+ {n:'radio-2.4G',type:'copper',admin:'up',oper:'up',fault:'kabel-jelek',poe:'-',speed:'300M'},
+],
+'AP Pavilion 1': [
+ {n:'radio-2.4G',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'300M'},
+],
+// ===== LAYER: ICTEL KIJ =====
+'Switch ICTel': [
+ {n:'uplink-isp',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+ {n:'to-olt',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+],
+'OLT KIJ': [
+ {n:'pon1',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
+],
+'ONT-01': [
+ {n:'eth-tenantA',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+],
+'ONT-02': [
+ {n:'eth-tenantB',type:'copper',admin:'down',oper:'down',fault:'disabled-human',poe:'-',speed:'1G'},
+],
+};
+const SIDEBAR=[
+{layer:'Manage ICTel PU',devs:['Router PU','Router Ictel','SW Ictel NOC','GPON / OLT','ONT Kampus','SW Ruijie PoE','AP A4.1','AP Pavilion 1']},
+{layer:'ICTEL KIJ',devs:['Switch ICTel','OLT KIJ','ONT-01','ONT-02']},
+];
+let curR='Router Ictel', curI='vlan34-asrama';
 function cur(){return DB[curR].find(x=>x.n===curI);}
 let dl=Array(30).fill(0), ul=Array(30).fill(0), labels=Array(30).fill('');
-function renderRouters(){const el=document.getElementById('routers');el.innerHTML='';Object.keys(DB).forEach(r=>{const b=document.createElement('button');b.className='router-btn'+(r===curR?' active':'');b.textContent='📡 '+r;b.onclick=()=>{curR=r;curI=DB[r][0].n;renderRouters();renderIfaces();};el.appendChild(b);});}
+function devDot(r){const ps=DB[r]||[];if(ps.some(p=>p.oper==='down'))return 'grey';if(ps.some(p=>p.fault!=='sehat'&&p.fault!=='sehat-sfp'))return 'red';return 'green';}
+function renderRouters(){const el=document.getElementById('routers');el.innerHTML='';SIDEBAR.forEach(g=>{const t=document.createElement('div');t.className='label';t.textContent=g.layer;el.appendChild(t);g.devs.forEach(r=>{const b=document.createElement('button');b.className='router-btn'+(r===curR?' active':'');b.innerHTML=`<span class="dot ${devDot(r)}"></span>${r}`;b.onclick=()=>{curR=r;curI=DB[r][0].n;renderRouters();renderIfaces();};el.appendChild(b);});});}
 function fmtDur(ms){const s=Math.max(0,Math.floor(ms/1000));const m=Math.floor(s/60),h=Math.floor(m/60);if(h>0)return h+' jam '+(m%60)+' mnt';if(m>0)return m+' mnt '+(s%60)+' dtk';return s+' dtk';}
 function clockStr(d){const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 function setLink(rName,p,oper,reason){reason=reason||'otomatis';
 if(oper==='down'&&p.oper!=='down'){p.oper='down';p.downSince=Date.now();p.flaps=(p.flaps||0)+1;log('> '+p.n+' DOWN ('+reason+')');try{pushAlarm('crit',rName+'/'+p.n,'DOWN ('+reason+') — catat mulai '+clockStr(new Date()));}catch(e){}try{DOWNTIME.unshift({dev:rName+'/'+p.n,downAt:Date.now(),downStr:clockStr(new Date()),upAt:null,upStr:'—',reason});renderDowntime();}catch(e){}}
 else if(oper==='up'&&p.oper==='down'){const dur=p.downSince?fmtDur(Date.now()-p.downSince):'?';p.oper='up';p.downSince=null;log('> '+p.n+' UP lagi setelah DOWN '+dur+' ('+reason+') ✅');try{pushAlarm('info',rName+'/'+p.n,'UP lagi setelah DOWN '+dur+' ('+reason+') ✅');}catch(e){}try{const open=DOWNTIME.find(e=>e.dev===(rName+'/'+p.n)&&!e.upAt);const now=new Date();if(open){open.upAt=now.getTime();open.upStr=clockStr(now);open.totalMs=open.upAt-open.downAt;}renderDowntime();}catch(e){}}
-if(rName===curR)renderIfaces();}
+if(rName===curR)renderIfaces();try{renderRouters();}catch(e){}}
 function renderDowntime(){const tb=document.getElementById('downBody');if(!tb)return;if(!DOWNTIME.length){tb.innerHTML='<tr><td colspan="5" style="padding:10px;text-align:center;color:#64748b">Belum ada downtime. Device DOWN akan tercatat di sini.</td></tr>';return;}
 tb.innerHTML=DOWNTIME.slice(0,30).map(e=>{const live=!e.upAt;const tot=live?fmtDur(Date.now()-e.downAt)+' ⏳':fmtDur(e.totalMs||0);return `<tr style="border-top:1px solid #e0f2fe"><td style="padding:6px 10px;font-weight:700">${e.dev}</td><td style="padding:6px 10px">${e.downStr}</td><td style="padding:6px 10px">${live?'<span style="color:#b91c1c;font-weight:700">masih DOWN</span>':e.upStr}</td><td style="padding:6px 10px;font-weight:700">${tot}</td><td style="padding:6px 10px">${e.reason}</td></tr>`;}).join('');}
 function refreshDurations(){document.querySelectorAll('[data-dur]').forEach(el=>{const key=el.getAttribute('data-dur');const sep=key.indexOf('|');const r=key.slice(0,sep),n=key.slice(sep+1);const p=(DB[r]||[]).find(x=>x.n===n);if(!p)return;if(p.oper==='down'&&p.downSince){el.textContent='DOWN '+fmtDur(Date.now()-p.downSince);}else{el.textContent=p.admin+'/'+p.oper;}});}
@@ -317,24 +352,24 @@ pu:{label:'Manage ICTel PU',vb:'0 0 920 400',
 nodes:[
 {id:'iforte',icon:'internet',label:'IForte / ISP',sub:'uplink 500M',x:80,y:70},
 {id:'swForte',icon:'switch',label:'Switch Iforte',sub:'edge',x:215,y:70},
-{id:'swNoc',icon:'switch',label:'SW Ictel NOC',sub:'area NOC',x:350,y:70},
-{id:'swSrv',icon:'switch',label:'SW Srv PU',sub:'server PU',x:485,y:70},
-{id:'rPu',icon:'router',label:'Router PU',sub:'BGP + IP publik',x:620,y:70},
-{id:'rIctel',icon:'router',label:'Router Ictel',sub:'VLAN 31-40',x:770,y:70},
-{id:'olt',icon:'server',label:'GPON / OLT',sub:'sebar ONT',x:770,y:200},
-{id:'ontK',icon:'server',label:'ONT Kampus',sub:'fiber OK',x:600,y:200},
-{id:'swR',icon:'switch',label:'SW Ruijie PoE',sub:'ke AP',x:430,y:200},
-{id:'apA',icon:'pc',label:'AP A4.1',sub:'flapping',x:250,y:200,st:'bad'},
-{id:'apP',icon:'pc',label:'AP Pavilion 1',sub:'asrama',x:430,y:310},
+{id:'swNoc',icon:'switch',label:'SW Ictel NOC',sub:'area NOC',x:350,y:70,db:'SW Ictel NOC'},
+{id:'swSrv',icon:'switch',label:'SW Srv PU',sub:'server PU',x:485,y:70,db:'SW Ictel NOC'},
+{id:'rPu',icon:'router',label:'Router PU',sub:'BGP + IP publik',x:620,y:70,db:'Router PU'},
+{id:'rIctel',icon:'router',label:'Router Ictel',sub:'VLAN 31-40',x:770,y:70,db:'Router Ictel'},
+{id:'olt',icon:'server',label:'GPON / OLT',sub:'sebar ONT',x:770,y:200,db:'GPON / OLT'},
+{id:'ontK',icon:'server',label:'ONT Kampus',sub:'fiber OK',x:600,y:200,db:'ONT Kampus'},
+{id:'swR',icon:'switch',label:'SW Ruijie PoE',sub:'ke AP',x:430,y:200,db:'SW Ruijie PoE'},
+{id:'apA',icon:'pc',label:'AP A4.1',sub:'flapping',x:250,y:200,db:'AP A4.1'},
+{id:'apP',icon:'pc',label:'AP Pavilion 1',sub:'asrama',x:430,y:310,db:'AP Pavilion 1'},
 ],
 links:[['iforte','swForte'],['swForte','swNoc'],['swNoc','swSrv'],['swSrv','rPu'],['rPu','rIctel'],['rIctel','olt'],['olt','ontK'],['ontK','swR'],['swR','apA'],['swR','apP']]},
 kij:{label:'ICTEL KIJ',vb:'0 0 900 300',
 nodes:[
 {id:'isp',icon:'internet',label:'ISP',sub:'uplink KIJ',x:90,y:150},
-{id:'swK',icon:'switch',label:'Switch ICTel',sub:'inti KIJ',x:290,y:150},
-{id:'oltK',icon:'server',label:'OLT',sub:'PON',x:490,y:150},
-{id:'ont1',icon:'server',label:'ONT-01',sub:'fiber OK',x:660,y:80},
-{id:'ont2',icon:'server',label:'ONT-02',sub:'fiber OK',x:660,y:220},
+{id:'swK',icon:'switch',label:'Switch ICTel',sub:'inti KIJ',x:290,y:150,db:'Switch ICTel'},
+{id:'oltK',icon:'server',label:'OLT',sub:'PON',x:490,y:150,db:'OLT KIJ'},
+{id:'ont1',icon:'server',label:'ONT-01',sub:'fiber OK',x:660,y:80,db:'ONT-01'},
+{id:'ont2',icon:'server',label:'ONT-02',sub:'fiber OK',x:660,y:220,db:'ONT-02'},
 {id:'ten1',icon:'pc',label:'Tenant A',sub:'user',x:815,y:80},
 {id:'ten2',icon:'pc',label:'Tenant B',sub:'user',x:815,y:220},
 ],
@@ -344,16 +379,20 @@ let TOPO=LAYERS.pu.nodes;
 let LINKS=LAYERS.pu.links;
 function setLayer(l){curLayer=l;TOPO=LAYERS[l].nodes;LINKS=LAYERS[l].links;document.getElementById('layerPu').style.background=l==='pu'?'#0284c7':'#fff';document.getElementById('layerPu').style.color=l==='pu'?'#fff':'#0369a1';document.getElementById('layerKij').style.background=l==='kij'?'#0284c7':'#fff';document.getElementById('layerKij').style.color=l==='kij'?'#fff':'#0369a1';log('> layer topologi: '+LAYERS[l].label);drawTopo();}
 function topoNode(id){return TOPO.find(n=>n.id===id);}
+function topoSt(n){if(!n.db||!DB[n.db])return n.st||'ok';const ps=DB[n.db];if(ps.some(p=>p.oper==='down'))return 'bad';if(ps.some(p=>p.fault!=='sehat'&&p.fault!=='sehat-sfp'))return 'warn';return 'ok';}
 function drawTopo(){
 const svg=document.getElementById('topoSvg');const W=svg.clientWidth||900;
 svg.setAttribute('viewBox',LAYERS[curLayer].vb);
 svg.innerHTML='';
-LINKS.forEach(([a,b])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',B.st==='bad'?'#f87171':'#38bdf8');l.setAttribute('stroke-width',B.st==='bad'?'3':'2.5');if(B.st==='bad')l.setAttribute('stroke-dasharray','7 5');svg.appendChild(l);});
+LINKS.forEach(([a,b])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const bad=topoSt(B)==='bad';const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',bad?'#f87171':'#38bdf8');l.setAttribute('stroke-width',bad?'3':'2.5');if(bad)l.setAttribute('stroke-dasharray','7 5');svg.appendChild(l);});
 TOPO.forEach(n=>{
+const st=topoSt(n);
 const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('transform',`translate(${n.x},${n.y})`);g.style.cursor='grab';
-g.innerHTML=`<rect x="-62" y="-30" width="124" height="60" rx="16" fill="${n.st==='bad'?'#fee2e2':'#ffffff'}" stroke="${n.st==='bad'?'#f87171':'#7dd3fc'}" stroke-width="2.5"/>${n.icon==='router'?iconSvg('router'):`<text y="0" text-anchor="middle" font-size="22">${ICONS[n.icon]||'📦'}</text>`}<text y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">${n.label}</text><text y="26" text-anchor="middle" font-size="9" fill="#64748b">${n.sub||''}</text>`;
+const fill=st==='bad'?'#fee2e2':(st==='warn'?'#fef9c3':'#ffffff');const stroke=st==='bad'?'#f87171':(st==='warn'?'#f59e0b':'#7dd3fc');
+g.innerHTML=`<rect x="-62" y="-30" width="124" height="60" rx="16" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${n.icon==='router'?iconSvg('router'):`<text y="0" text-anchor="middle" font-size="22">${ICONS[n.icon]||'📦'}</text>`}<text y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">${n.label}</text><text y="26" text-anchor="middle" font-size="9" fill="#64748b">${n.sub||''}</text>`;
 g.addEventListener('pointerdown',ev=>{g.setPointerCapture(ev.pointerId);const move=e2=>{const r=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const vx=vb.width/r.width;n.x=Math.round((e2.clientX-r.left)*vx);n.y=Math.round((e2.clientY-r.top)*(vb.height/r.height));g.setAttribute('transform',`translate(${n.x},${n.y})`);};const up=()=>{g.removeEventListener('pointermove',move);drawTopo();};g.addEventListener('pointermove',move);g.addEventListener('pointerup',up,{once:true});});
 g.addEventListener('contextmenu',ev=>{ev.preventDefault();topoMenu(ev.clientX,ev.clientY,n.id);});
+g.addEventListener('click',()=>{if(n.db&&DB[n.db]){curR=n.db;curI=DB[n.db][0].n;try{renderRouters();renderIfaces();log('> pantau '+n.db);}catch(e){}}});
 svg.appendChild(g);});
 document.getElementById('topoList').textContent=`${TOPO.length} perangkat dummy • ${LINKS.length} link • kanan-klik node untuk ganti icon`;
 }
