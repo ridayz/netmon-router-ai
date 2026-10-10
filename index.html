@@ -56,6 +56,11 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="label">Collector (live) <span id="collDot" title="status collector">⚪</span></div>
 <input id="collUrl" placeholder="http://localhost:8932" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px" onchange="try{localStorage.setItem('netmon-coll',this.value);}catch(e){}">
 <div style="font-size:11px;color:#64748b;margin-top:2px">device 🟢 = live dari collector</div>
+<div class="label">AI agent</div>
+<input id="aiKey" type="password" placeholder="API key (9Router / Gemini / dll)" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px" onchange="try{localStorage.setItem('netmon-ai-key',this.value);}catch(e){}">
+<input id="aiBase" placeholder="Base URL (kosongkan = 9Router)" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px;margin-top:4px" onchange="try{localStorage.setItem('netmon-ai-base',this.value);}catch(e){}">
+<input id="aiModel" placeholder="Model (kosongkan = auto-failover)" style="width:100%;border:2px solid #bae6fd;border-radius:10px;padding:7px 10px;font-size:12px;margin-top:4px" onchange="try{localStorage.setItem('netmon-ai-model',this.value);}catch(e){}">
+<div style="font-size:11px;color:#64748b;margin-top:2px">key cuma di mesin ini • jangan bagikan dashboard ke sembarang orang</div>
 <div style="display:flex;gap:6px;margin-top:8px">
 <button onclick="setAutoCare()" id="autoCareBtn" style="flex:1;border:2px solid #bae6fd;background:#fff;color:#0369a1;border-radius:10px;padding:8px;font-weight:800;cursor:pointer;font-size:12px">🤖 Auto-Care</button>
 <span id="autoCareState" style="align-self:center;font-size:11px;color:#64748b">OFF</span>
@@ -362,7 +367,7 @@ function COLL(){const el=document.getElementById('collUrl');return ((el&&el.valu
 let LIVE={};try{LIVE=JSON.parse(localStorage.getItem('netmon-live-v1')||'{}');}catch(e){LIVE={};}
 function persistLive(){try{localStorage.setItem('netmon-live-v1',JSON.stringify(LIVE));}catch(e){}}
 function ensureDetectGroup(){let g=SIDEBAR.find(g=>g.layer==='Hasil Auto-Detect');if(!g){g={layer:'Hasil Auto-Detect',devs:[]};SIDEBAR.push(g);}return g;}
-function restoreLive(){for(const key in LIVE){const L=LIVE[key];if(!L||!L.ifaces)continue;if(!DB[key])DB[key]=JSON.parse(JSON.stringify(L.ifaces));const g=ensureDetectGroup();if(!g.devs.includes(key))g.devs.push(key);}try{document.getElementById('collUrl').value=localStorage.getItem('netmon-coll')||'http://localhost:8932';}catch(e){}}
+function restoreLive(){for(const key in LIVE){const L=LIVE[key];if(!L||!L.ifaces)continue;if(!DB[key])DB[key]=JSON.parse(JSON.stringify(L.ifaces));const g=ensureDetectGroup();if(!g.devs.includes(key))g.devs.push(key);}try{document.getElementById('collUrl').value=localStorage.getItem('netmon-coll')||'http://localhost:8932';}catch(e){}restoreAiFields();}
 async function collGet(path,timeoutMs){const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),timeoutMs||20000);try{const r=await fetch(COLL()+path,{signal:ctl.signal});return await r.json();}finally{clearTimeout(to);}}
 setInterval(async()=>{try{await collGet('/health',5000);const d=document.getElementById('collDot');if(d){d.textContent='🟢';d.title='collector nyambung';}}catch(e){const d=document.getElementById('collDot');if(d){d.textContent='🔴';d.title='collector MATI — jalankan node server.js di netmon-collector';}}},15000);
 function toggleSwap(){const L=LIVE[curR];if(!L)return;const c=cur();L.swap=L.swap||{};const curSw=L.swap[c.n]===undefined?(!/isp|wan|uplink|bgp|internet/i.test(c.n)):!!L.swap[c.n];L.swap[c.n]=!curSw;persistLive();log('> DL/UL '+curR+'/'+c.n+' dibalik manual ('+(L.swap[c.n]?'Tx=DL':'Rx=DL')+')');}
@@ -468,19 +473,22 @@ function chatBubble(who,text){const box=document.getElementById('chatBox');if(!b
 function chatAsk(t){document.getElementById('chatIn').value=t;chatSend();}
 async function chatSend(){
 const inp=document.getElementById('chatIn');const msg=(inp.value||'').trim();if(!msg)return;inp.value='';
+const key=(document.getElementById('aiKey')?.value||localStorage.getItem('netmon-ai-key')||'').trim();
+if(!key){chatBubble('ai','⚠️ API key belum diisi — ketik di kolom "API key" di sidebar bawah (9Router/Gemini/dll).');return;}
 chatBubble('user',msg);
 const wait=chatBubble('ai','⏳ ngecek...');
 try{
-const r=await fetch(COLL()+'/api/ai-ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,ctx:aiCtx()})});
+const r=await fetch(COLL()+'/api/ai-ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,ctx:aiCtx(),aiKey:key,aiBase:(document.getElementById('aiBase')?.value||localStorage.getItem('netmon-ai-base')||'').trim(),aiModel:(document.getElementById('aiModel')?.value||localStorage.getItem('netmon-ai-model')||'').trim()})});
 const j=await r.json();
 if(!j.ok)throw new Error(j.error||('server '+r.status));
 wait.textContent='🤖 '+j.reply;
 if(j.files&&j.files.length){j.files.forEach(f=>{const b=document.createElement('button');b.style.cssText='align-self:flex-start;border:0;background:#059669;color:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:800;margin-top:2px';b.textContent='⬇ Download '+f.name;const box2=document.getElementById('chatBox');b.onclick=()=>window.open(COLL()+f.url,'_blank');if(box2){box2.appendChild(b);box2.scrollTop=box2.scrollHeight;}});}
 if(j.actions&&j.actions.length){j.actions.forEach(a=>{const b=document.createElement('button');b.style.cssText='align-self:flex-start;border:0;background:#b45309;color:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:800;margin-top:2px';b.textContent=a.label;const box2=document.getElementById('chatBox');b.onclick=async()=>{b.disabled=true;b.textContent='⏳ jalan...';try{const r2=await fetch(COLL()+'/api/ai-act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket:a.ticket})});const j2=await r2.json();if(!j2.ok)throw new Error(j2.error||'gagal');chatBubble('ai',j2.reply);}catch(e){chatBubble('ai','gagal: '+String(e.message||e).slice(0,120));}};if(box2){box2.appendChild(b);box2.scrollTop=box2.scrollHeight;}});}
 try{pushAlarm('info','chat-ai','Q: '+msg.slice(0,60));}catch(e){}
-}catch(e){wait.textContent='🤖 waduh, AI-nya nggak nyambung: '+String(e.message||e).slice(0,120)+'\n(cek collector jalan + AI_KEY di .env keisi)';}
+}catch(e){wait.textContent='🤖 waduh, AI-nya nggak nyambung: '+String(e.message||e).slice(0,120)+'\n(cek key di sidebar + collector 🟢)';}
 const box=document.getElementById('chatBox');if(box)box.scrollTop=box.scrollHeight;
 }
+function restoreAiFields(){try{const k=localStorage.getItem('netmon-ai-key');if(k&&document.getElementById('aiKey'))document.getElementById('aiKey').value=k;const b=localStorage.getItem('netmon-ai-base');if(b&&document.getElementById('aiBase'))document.getElementById('aiBase').value=b;const m=localStorage.getItem('netmon-ai-model');if(m&&document.getElementById('aiModel'))document.getElementById('aiModel').value=m;}catch(e){}}
 function showTab(w){const tabs={dash:'tab-dash',topo:'tab-topo',log:'tab-log'};for(const k in tabs){document.getElementById(tabs[k]).style.display=(k===w)?'flex':'none';}const btns={dash:'tabBtnDash',topo:'tabBtnTopo',log:'tabBtnLog'};for(const k in btns){const on=(k===w);document.getElementById(btns[k]).style.background=on?'#0284c7':'#fff';document.getElementById(btns[k]).style.color=on?'#fff':'#0369a1';}if(w==='topo'){renderLayerBtns();drawTopo();}if(w==='log'){renderAlarms();renderDowntime();markAlarmsRead();}}
 // ---- TOPOLOGI DUMMY (archify-style pastel) ----
 const ICONS={router:'Router',switch:'🔀',swpoe:'🔀⚡',ont:'📟',olt:'🖧',ap:'📶',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
