@@ -101,6 +101,8 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <span id="layerBtns" style="display:flex;gap:6px;flex-wrap:wrap"></span>
 <button onclick="newLayer()" style="border:2px dashed #0284c7;background:#fff;color:#0284c7;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">＋ Layer Baru</button>
 <button onclick="saveTopo(true)" style="border:0;background:#059669;color:#fff;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">💾 Save</button>
+<button id="btnUndo" onclick="undoTopo()" class="ai-btn ghost" style="width:auto;padding:7px 12px" title="Ctrl+Z">↩ Undo</button>
+<button id="btnRedo" onclick="redoTopo()" class="ai-btn ghost" style="width:auto;padding:7px 12px" title="Ctrl+Y">⟳ Redo</button>
 <button onclick="exportPNG()" style="border:0;background:#0284c7;color:#fff;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer">🖼 Export PNG</button>
 <button onclick="document.getElementById('importTopo').click()" class="ai-btn ghost" style="width:auto;padding:7px 12px">⬆ Import</button>
 <input type="file" id="importTopo" accept=".json" style="display:none" onchange="importTopo(this)">
@@ -419,7 +421,14 @@ try{const sv=JSON.parse(localStorage.getItem('netmon-topo-v1')||'null');if(sv&&s
 let TOPO=LAYERS[curLayer].nodes;
 let LINKS=LAYERS[curLayer].links;
 const TOPO_HOME={};for(const l in DEFAULT_LAYERS){TOPO_HOME[l]={};DEFAULT_LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
-function saveTopo(manual){try{const at=new Date().toLocaleString('id-ID',{hour12:false});localStorage.setItem('netmon-topo-v1',JSON.stringify({at,cur:curLayer,layers:LAYERS}));const st=document.getElementById('saveStat');if(st)st.textContent=(manual?'💾 Tersimpan ':'Autosave ')+at;if(manual){log('> projek topologi di-SAVE ('+at+')');pushAlarm('info','topologi','Projek topologi di-save');}}catch(e){if(manual)log('> SAVE gagal: '+e.message);}}
+function saveTopo(manual){snapTopo();persistTopo(manual);}
+function persistTopo(manual){try{const at=new Date().toLocaleString('id-ID',{hour12:false});localStorage.setItem('netmon-topo-v1',JSON.stringify({at,cur:curLayer,layers:LAYERS}));const st=document.getElementById('saveStat');if(st)st.textContent=(manual?'💾 Tersimpan ':'Autosave ')+at;if(manual){log('> projek topologi di-SAVE ('+at+')');pushAlarm('info','topologi','Projek topologi di-save');}}catch(e){if(manual)log('> SAVE gagal: '+e.message);}}
+let HIST=[],HI=-1;
+function snapTopo(){try{HIST=HIST.slice(0,HI+1);HIST.push(JSON.stringify({cur:curLayer,layers:LAYERS}));if(HIST.length>60)HIST.shift();HI=HIST.length-1;}catch(e){}updateUR();}
+function updateUR(){const u=document.getElementById('btnUndo'),r=document.getElementById('btnRedo');const canU=HI>0,canR=(HI>=0&&HI<HIST.length-1);if(u){u.disabled=!canU;u.style.opacity=canU?'1':'.4';}if(r){r.disabled=!canR;r.style.opacity=canR?'1':'.4';}}
+function restoreTopo(){try{const s=JSON.parse(HIST[HI]);LAYERS=s.layers;if(s.cur&&LAYERS[s.cur])curLayer=s.cur;if(!LAYERS[curLayer])curLayer='pu';TOPO=LAYERS[curLayer].nodes;LINKS=LAYERS[curLayer].links;renderLayerBtns();drawTopo();persistTopo();}catch(e){log('> undo/redo gagal: '+e.message);}}
+function undoTopo(){if(HI>0){HI--;restoreTopo();updateUR();log('> ↩ undo');}}
+function redoTopo(){if(HI<HIST.length-1){HI++;restoreTopo();updateUR();log('> ⟳ redo');}}
 function renderLayerBtns(){const el=document.getElementById('layerBtns');if(!el)return;el.innerHTML='';Object.keys(LAYERS).forEach(k=>{const on=(k===curLayer);const b=document.createElement('button');b.style.cssText=`border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:${on?'#0284c7':'#fff'};color:${on?'#fff':'#0369a1'};${on?'':'border:2px solid #bae6fd;'}`;b.textContent=LAYERS[k].label||k;if(k!=='pu'&&k!=='kij'){const x=document.createElement('span');x.textContent=' ✕';x.title='hapus layer';x.style.cssText='margin-left:6px;color:#ef4444;cursor:pointer';x.onclick=(ev)=>{ev.stopPropagation();delLayer(k);};b.appendChild(x);}b.onclick=()=>setLayer(k);b.ondblclick=()=>renameLayer(k);b.title='klik: buka • 2x klik: rename';el.appendChild(b);});}
 function renameLayer(k){const nl=prompt('Nama layer:',LAYERS[k].label||k);if(nl===null||!nl)return;LAYERS[k].label=nl;renderLayerBtns();saveTopo();log('> layer di-rename: '+nl);}
 function newLayer(){const nama=prompt('Nama layer baru:','Layer Baru');if(!nama) return;const key='c'+Date.now()%100000;LAYERS[key]={label:nama,vb:'0 0 900 400',areas:[],nodes:[],links:[]};TOPO_HOME[key]={};setLayer(key);saveTopo(true);log('> layer baru: '+nama);}
@@ -446,6 +455,8 @@ function importTopo(inp){const f=inp.files&&inp.files[0];if(!f)return;const rd=n
 renderLayerBtns();
 document.getElementById('topoSvg').addEventListener('contextmenu',ev=>{if(ev.defaultPrevented)return;ev.preventDefault();topoCanvasMenu(ev);});
 document.getElementById('topoSvg').addEventListener('dblclick',ev=>{topoDblEdit(ev);});
+snapTopo();
+document.addEventListener('keydown',ev=>{const t=(ev.target&&ev.target.tagName)||'';if(t==='INPUT'||t==='TEXTAREA')return;const k=(ev.key||'').toLowerCase();if((ev.ctrlKey||ev.metaKey)&&k==='z'&&!ev.shiftKey){ev.preventDefault();undoTopo();}else if((ev.ctrlKey||ev.metaKey)&&(k==='y'||(k==='z'&&ev.shiftKey))){ev.preventDefault();redoTopo();}});
 function resetTopo(){for(const l in LAYERS){LAYERS[l].nodes.forEach(n=>{const h=(TOPO_HOME[l]||{})[n.id];if(h){n.x=h.x;n.y=h.y;}});}drawTopo();saveTopo();log('> topologi dikembalikan ke posisi semula');try{pushAlarm('info','topologi','Posisi node dikembalikan ke semula');}catch(e){}}
 function setLayer(l){if(!LAYERS[l])l='pu';curLayer=l;TOPO=LAYERS[l].nodes;LINKS=LAYERS[l].links;renderLayerBtns();log('> layer topologi: '+LAYERS[l].label);drawTopo();}
 function topoNode(id){return TOPO.find(n=>n.id===id);}
