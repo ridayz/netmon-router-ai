@@ -53,5 +53,5 @@ Live file: `index.html` (alias `netmon-dummy.html`), single-file, Chart.js via C
 - 2026-10-10: router jadi vector ala MikroTik pastel (lainnya balik emoji); +Tab 🔔 Log/Alarm (badge + filter + bunyi).
 - 2026-10-10: durasi DOWN kecatet (sidebar + status pill live, format Xj/Ym/Zd) + flapping realistis (kabel-jelek/SFP-redaman down-pulih sendiri, sehat blip langka, putus/no-light tetap down) + toggle simulasi di sidebar + alarm DOWN/UP-dengan-durasi.
 - 2026-10-10: tabel 📋 Riwayat Downtime di tab Log: kolom Perangkat | DOWN tanggal-jam | UP tanggal-jam | Total down per kejadian | Sebab. Tanpa akumulasi. Baris "masih DOWN ⏳" live.
-- 2026-10-10: topologi 2 layer (Manage ICTel PU: IForte→SW→Router PU BGP→Router Ictel VLAN31-40→GPON→ONT→Ruijie→AP; ICTEL KIJ: ISP→Switch→OLT→ONT→Tenant) + kotak Komplain wifi→AI Solver (telusuri AP→switch→ONT→DHCP→NAT→uplink, vonis + arahan + tiket otomatis).
+- 2026-10-10: topologi 2 layer (Manage ICTel PU: IForte→SW→Router PU BGP→Router Ictel VLAN31-40→GPON→ONT→Ruijie→AP; ICTEL KIJ: ISP→Switch→OLT→ONT→Tenant) + kotak Komplain wifi→AI Solver (telusuri AP→switch→ONT→DHCP→NAT→uplink, vonis + arahan + tiket otomatis) + reset posisi + klik kanan node 🔍 AI Cek & Diagnosa (ambil interface terburuk → loncat ke Dashboard + diagnosa jalan).
 - 2026-10-09: otak disimpan (AGENTS.md + BRAIN.md, BRAIN di-push).
