@@ -111,7 +111,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="detectPubIp()">🌐 Deteksi IP-ku</button>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="addTopoNode()">＋ Tambah perangkat</button>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="resetTopo()">↩ Reset posisi</button>
-<span style="color:#64748b">drag node • klik kanan = ganti icon / AI diagnosa • <span style="color:#fb923c;font-weight:800">━ FO</span> • <span style="color:#38bdf8;font-weight:800">━ LAN</span> • <span style="color:#ef4444;font-weight:800">✕ merah = DOWN</span> • live tiap 3 dtk</span>
+<span style="color:#64748b">drag node • klik kanan node/kanvas = menu • <b>2x klik = edit teks</b> • <span style="color:#fb923c;font-weight:800">━ FO</span> • <span style="color:#38bdf8;font-weight:800">━ LAN</span> • <span style="color:#ef4444;font-weight:800">✕ merah = DOWN</span> • live tiap 3 dtk</span>
 </div>
 <svg id="topoSvg" width="100%" height="460" style="background:linear-gradient(180deg,#e0f2fe,#fff);border:2px solid #bae6fd;border-radius:14px;margin-top:10px;touch-action:none"></svg>
 <div id="topoList" style="font-size:12px;color:#475569;margin-top:8px"></div>
@@ -383,10 +383,10 @@ return null;
 const DEFAULT_LAYERS={
 pu:{label:'Manage President University',vb:'0 0 980 440',
 areas:[
-{label:'Area Server ICTel',x:5,y:18,w:280,h:116},
-{label:'Area Server ICTel',x:450,y:178,w:310,h:116},
-{label:'Area Server President University',x:300,y:18,w:450,h:116},
-{label:'Area Publik / Kampus / Asrama',x:100,y:180,w:330,h:220},
+{id:'a-ictel-1',label:'Area Server ICTel',x:5,y:18,w:280,h:116},
+{id:'a-ictel-2',label:'Area Server ICTel',x:450,y:178,w:310,h:116},
+{id:'a-pu',label:'Area Server President University',x:300,y:18,w:450,h:116},
+{id:'a-pub',label:'Area Publik / Kampus / Asrama',x:100,y:180,w:330,h:220},
 ],
 nodes:[
 {id:'iforte',icon:'internet',label:'IForte / ISP',sub:'uplink 500M',x:70,y:70},
@@ -420,7 +420,8 @@ let TOPO=LAYERS[curLayer].nodes;
 let LINKS=LAYERS[curLayer].links;
 const TOPO_HOME={};for(const l in DEFAULT_LAYERS){TOPO_HOME[l]={};DEFAULT_LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
 function saveTopo(manual){try{const at=new Date().toLocaleString('id-ID',{hour12:false});localStorage.setItem('netmon-topo-v1',JSON.stringify({at,cur:curLayer,layers:LAYERS}));const st=document.getElementById('saveStat');if(st)st.textContent=(manual?'💾 Tersimpan ':'Autosave ')+at;if(manual){log('> projek topologi di-SAVE ('+at+')');pushAlarm('info','topologi','Projek topologi di-save');}}catch(e){if(manual)log('> SAVE gagal: '+e.message);}}
-function renderLayerBtns(){const el=document.getElementById('layerBtns');if(!el)return;el.innerHTML='';Object.keys(LAYERS).forEach(k=>{const on=(k===curLayer);const b=document.createElement('button');b.style.cssText=`border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:${on?'#0284c7':'#fff'};color:${on?'#fff':'#0369a1'};${on?'':'border:2px solid #bae6fd;'}`;b.textContent=LAYERS[k].label||k;if(k!=='pu'&&k!=='kij'){const x=document.createElement('span');x.textContent=' ✕';x.title='hapus layer';x.style.cssText='margin-left:6px;color:#ef4444;cursor:pointer';x.onclick=(ev)=>{ev.stopPropagation();delLayer(k);};b.appendChild(x);}b.onclick=()=>setLayer(k);el.appendChild(b);});}
+function renderLayerBtns(){const el=document.getElementById('layerBtns');if(!el)return;el.innerHTML='';Object.keys(LAYERS).forEach(k=>{const on=(k===curLayer);const b=document.createElement('button');b.style.cssText=`border:0;border-radius:8px;padding:7px 14px;font-weight:800;cursor:pointer;background:${on?'#0284c7':'#fff'};color:${on?'#fff':'#0369a1'};${on?'':'border:2px solid #bae6fd;'}`;b.textContent=LAYERS[k].label||k;if(k!=='pu'&&k!=='kij'){const x=document.createElement('span');x.textContent=' ✕';x.title='hapus layer';x.style.cssText='margin-left:6px;color:#ef4444;cursor:pointer';x.onclick=(ev)=>{ev.stopPropagation();delLayer(k);};b.appendChild(x);}b.onclick=()=>setLayer(k);b.ondblclick=()=>renameLayer(k);b.title='klik: buka • 2x klik: rename';el.appendChild(b);});}
+function renameLayer(k){const nl=prompt('Nama layer:',LAYERS[k].label||k);if(nl===null||!nl)return;LAYERS[k].label=nl;renderLayerBtns();saveTopo();log('> layer di-rename: '+nl);}
 function newLayer(){const nama=prompt('Nama layer baru:','Layer Baru');if(!nama) return;const key='c'+Date.now()%100000;LAYERS[key]={label:nama,vb:'0 0 900 400',areas:[],nodes:[],links:[]};TOPO_HOME[key]={};setLayer(key);saveTopo(true);log('> layer baru: '+nama);}
 function delLayer(k){if(k==='pu'||k==='kij')return;if(!confirm('Hapus layer "'+(LAYERS[k].label||k)+'" beserta isinya?'))return;delete LAYERS[k];if(curLayer===k)setLayer('pu');else{renderLayerBtns();}saveTopo(true);log('> layer dihapus: '+k);}
 function exportPNG(){try{
@@ -443,6 +444,8 @@ img.src=url;
 }catch(e){log('> export PNG gagal: '+e.message);}}
 function importTopo(inp){const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);const ls=d.layers||d;if(!ls.pu||!ls.kij)throw new Error('format bukan projek netmon');LAYERS=ls;if(!LAYERS[curLayer])curLayer='pu';TOPO=LAYERS[curLayer].nodes;LINKS=LAYERS[curLayer].links;setLayer(curLayer);saveTopo(true);log('> projek di-import dari '+f.name);}catch(e){log('> import gagal: '+e.message);alert('Import gagal: '+e.message);}};rd.readAsText(f);inp.value='';}
 renderLayerBtns();
+document.getElementById('topoSvg').addEventListener('contextmenu',ev=>{if(ev.defaultPrevented)return;ev.preventDefault();topoCanvasMenu(ev);});
+document.getElementById('topoSvg').addEventListener('dblclick',ev=>{topoDblEdit(ev);});
 function resetTopo(){for(const l in LAYERS){LAYERS[l].nodes.forEach(n=>{const h=(TOPO_HOME[l]||{})[n.id];if(h){n.x=h.x;n.y=h.y;}});}drawTopo();saveTopo();log('> topologi dikembalikan ke posisi semula');try{pushAlarm('info','topologi','Posisi node dikembalikan ke semula');}catch(e){}}
 function setLayer(l){if(!LAYERS[l])l='pu';curLayer=l;TOPO=LAYERS[l].nodes;LINKS=LAYERS[l].links;renderLayerBtns();log('> layer topologi: '+LAYERS[l].label);drawTopo();}
 function topoNode(id){return TOPO.find(n=>n.id===id);}
@@ -452,15 +455,15 @@ function drawTopo(){
 const svg=document.getElementById('topoSvg');const W=svg.clientWidth||900;
 svg.setAttribute('viewBox',LAYERS[curLayer].vb);
 svg.innerHTML='';
-(LAYERS[curLayer].areas||[]).forEach(a=>{const r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x',a.x);r.setAttribute('y',a.y);r.setAttribute('width',a.w);r.setAttribute('height',a.h);r.setAttribute('rx',16);r.setAttribute('fill','rgba(255,255,255,.45)');r.setAttribute('stroke','#0284c7');r.setAttribute('stroke-width','1.6');r.setAttribute('stroke-dasharray','8 5');svg.appendChild(r);const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',a.x+14);t.setAttribute('y',a.y+18);t.setAttribute('font-size','11');t.setAttribute('font-weight','800');t.setAttribute('fill','#0369a1');t.textContent=a.label;svg.appendChild(t);});
+(LAYERS[curLayer].areas||[]).forEach(a=>{const r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x',a.x);r.setAttribute('y',a.y);r.setAttribute('width',a.w);r.setAttribute('height',a.h);r.setAttribute('rx',16);r.setAttribute('fill','rgba(255,255,255,.45)');r.setAttribute('stroke','#0284c7');r.setAttribute('stroke-width','1.6');r.setAttribute('stroke-dasharray','8 5');svg.appendChild(r);const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',a.x+14);t.setAttribute('y',a.y+18);t.setAttribute('font-size',a.fs||11);t.setAttribute('font-weight','800');t.setAttribute('fill','#0369a1');t.textContent=a.label;svg.appendChild(t);});
 LINKS.forEach(([a,b,med])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const bad=topoSt(B)==='bad';const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',med==='fo'?'#fb923c':'#38bdf8');l.setAttribute('stroke-width','3');svg.appendChild(l);if(bad){const mx=(A.x+B.x)/2,my=(A.y+B.y)/2;const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',mx);c.setAttribute('cy',my);c.setAttribute('r',9);c.setAttribute('fill','#fff');c.setAttribute('stroke','#ef4444');c.setAttribute('stroke-width',2);svg.appendChild(c);[[mx-5,my-5,mx+5,my+5],[mx+5,my-5,mx-5,my+5]].forEach(s=>{const x=document.createElementNS('http://www.w3.org/2000/svg','line');x.setAttribute('x1',s[0]);x.setAttribute('y1',s[1]);x.setAttribute('x2',s[2]);x.setAttribute('y2',s[3]);x.setAttribute('stroke','#ef4444');x.setAttribute('stroke-width',3);x.setAttribute('stroke-linecap','round');svg.appendChild(x);});}});
 TOPO.forEach(n=>{
 const st=topoSt(n);
 const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('transform',`translate(${n.x},${n.y})`);g.style.cursor='grab';
 const fill=st==='bad'?'#fee2e2':(st==='warn'?'#fef9c3':'#ffffff');const stroke=st==='bad'?'#f87171':(st==='warn'?'#f59e0b':'#7dd3fc');
-g.innerHTML=`<rect x="-62" y="-30" width="124" height="60" rx="16" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${VECICON.includes(n.icon)?iconSvg(n.icon):`<text y="0" text-anchor="middle" font-size="22">${ICONS[n.icon]||'📦'}</text>`}<text y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">${n.label}</text><text y="26" text-anchor="middle" font-size="9" fill="#64748b">${n.sub||''}</text>`;
+g.innerHTML=`<rect x="-62" y="-30" width="124" height="60" rx="16" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${VECICON.includes(n.icon)?iconSvg(n.icon):`<text y="0" text-anchor="middle" font-size="22">${ICONS[n.icon]||'📦'}</text>`}<text y="16" text-anchor="middle" font-size="${Math.round(11*(n.fs||1))}" font-weight="800" fill="#0369a1">${n.label}</text><text y="26" text-anchor="middle" font-size="${Math.round(9*(n.fs||1))}" fill="#64748b">${n.sub||''}</text>`;
 g.addEventListener('pointerdown',ev=>{window._topoDrag=true;g.setPointerCapture(ev.pointerId);const move=e2=>{const r=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const vx=vb.width/r.width;n.x=Math.round((e2.clientX-r.left)*vx);n.y=Math.round((e2.clientY-r.top)*(vb.height/r.height));g.setAttribute('transform',`translate(${n.x},${n.y})`);};const up=()=>{g.removeEventListener('pointermove',move);window._topoDrag=false;drawTopo();saveTopo();};g.addEventListener('pointermove',move);g.addEventListener('pointerup',up,{once:true});});
-g.addEventListener('contextmenu',ev=>{ev.preventDefault();topoMenu(ev.clientX,ev.clientY,n.id);});
+g.addEventListener('contextmenu',ev=>{ev.preventDefault();ev.stopPropagation();topoMenu(ev.clientX,ev.clientY,n.id);});
 g.addEventListener('click',()=>{if(n.db&&DB[n.db]){curR=n.db;curI=DB[n.db][0].n;try{renderRouters();renderIfaces();log('> pantau '+n.db);}catch(e){}}});
 svg.appendChild(g);});
 document.getElementById('topoList').textContent=`${TOPO.length} perangkat dummy • ${LINKS.length} link • kanan-klik node untuk ganti icon • live refresh tiap 3 dtk`;
@@ -474,9 +477,36 @@ const m=document.createElement('div');m.id='tmenu';
 m.style.cssText=`position:fixed;left:${x}px;top:${y}px;background:#fff;border:2px solid #bae6fd;border-radius:12px;padding:8px;z-index:99;box-shadow:0 8px 24px rgba(2,132,199,.25);min-width:210px`;
 m.innerHTML=`<div style="font-size:12px;font-weight:800;color:#0369a1;margin-bottom:6px">Node → ${id}</div>`
 +(n&&n.db&&DB[n.db]?`<button onclick="topoDiagnose('${id}')" style="width:100%;text-align:left;border:0;background:#e0f2fe;border-radius:8px;padding:8px;cursor:pointer;font-weight:800;color:#0369a1">🔍 AI Cek & Diagnosa</button><button onclick="topoFix('${id}')" style="width:100%;text-align:left;border:0;background:#059669;border-radius:8px;padding:8px;margin-top:4px;cursor:pointer;font-weight:800;color:#fff">⚡ AI Diagnosa + Fix</button>`:`<div style="font-size:12px;color:#64748b">node di luar monitoring</div>`)
++`<div style="font-size:12px;font-weight:800;color:#0369a1;margin:6px 0 2px">Teks</div><button onclick="editTopoText('${id}')" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:7px;margin-top:3px;cursor:pointer">✎ Edit nama & sub-teks</button><div style="display:flex;gap:4px;margin-top:4px"><button onclick="setTopoFont('${id}',0.85)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:11px">A-</button><button onclick="setTopoFont('${id}',1)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:13px">A</button><button onclick="setTopoFont('${id}',1.25)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:15px">A+</button></div>`
 +`<div style="font-size:12px;font-weight:800;color:#0369a1;margin:6px 0 2px">Ganti icon</div>`+Object.keys(ICONS).map(k=>`<button onclick="setTopoIcon('${id}','${k}')" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:7px;margin-top:3px;cursor:pointer">${ICONS[k]} ${k}</button>`).join('')+`<button onclick="delTopoNode('${id}')" style="width:100%;text-align:left;border:0;background:#fee2e2;border-radius:8px;padding:7px;margin-top:3px;cursor:pointer">🗑 hapus</button>`;
 document.body.appendChild(m);setTimeout(()=>document.addEventListener('click',()=>m.remove(),{once:true}),50);
 }
+function editTopoText(id){const n=topoNode(id);if(!n)return;document.getElementById('tmenu')?.remove();const nl=prompt('Nama perangkat:',n.label);if(nl===null)return;const ns=prompt('Sub-teks (cth: IP / VLAN):',n.sub||'');if(ns===null)return;n.label=nl||n.label;n.sub=ns;drawTopo();saveTopo();log('> teks node diubah: '+n.label);}
+function setTopoFont(id,s){const n=topoNode(id);if(!n)return;n.fs=s;document.getElementById('tmenu')?.remove();drawTopo();saveTopo();}
+function topoSvgPos(ev){const svg=document.getElementById('topoSvg');const r=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;return {x:Math.round((ev.clientX-r.left)*vb.width/r.width),y:Math.round((ev.clientY-r.top)*vb.height/r.height)};}
+function areaAt(l,x,y){const as=(LAYERS[l].areas||[]);for(let i=as.length-1;i>=0;i--){const a=as[i];if(x>=a.x&&x<=a.x+a.w&&y>=a.y&&y<=a.y+a.h)return a;}return null;}
+function topoCanvasMenu(ev){
+const p=topoSvgPos(ev);const a=areaAt(curLayer,p.x,p.y);
+document.getElementById('tmenu')?.remove();
+const m=document.createElement('div');m.id='tmenu';
+m.style.cssText=`position:fixed;left:${ev.clientX}px;top:${ev.clientY}px;background:#fff;border:2px solid #bae6fd;border-radius:12px;padding:8px;z-index:99;box-shadow:0 8px 24px rgba(2,132,199,.25);min-width:210px`;
+if(a){m.innerHTML=`<div style="font-size:12px;font-weight:800;color:#0369a1;margin-bottom:6px">Area → ${a.label}</div>`
++`<button onclick="editAreaText('${a.id}')" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:7px;margin-top:3px;cursor:pointer">✎ Edit nama area</button>`
++`<div style="display:flex;gap:4px;margin-top:4px"><button onclick="setAreaFont('${a.id}',9)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:11px">A-</button><button onclick="setAreaFont('${a.id}',11)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:13px">A</button><button onclick="setAreaFont('${a.id}',14)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:15px">A+</button></div>`
++`<div style="display:flex;gap:4px;margin-top:4px"><button onclick="setAreaSize('${a.id}',200,100)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:12px">S</button><button onclick="setAreaSize('${a.id}',300,170)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:12px">M</button><button onclick="setAreaSize('${a.id}',430,220)" style="flex:1;border:0;background:#f0f9ff;border-radius:8px;padding:6px;cursor:pointer;font-size:12px">L</button></div>`
++`<button onclick="delArea('${a.id}')" style="width:100%;text-align:left;border:0;background:#fee2e2;border-radius:8px;padding:7px;margin-top:4px;cursor:pointer">🗑 Hapus area</button>`;}
+else{m.innerHTML=`<div style="font-size:12px;font-weight:800;color:#0369a1;margin-bottom:6px">Kanvas kosong</div>`
++`<button onclick="addAreaAt(${p.x},${p.y})" style="width:100%;text-align:left;border:0;background:#e0f2fe;border-radius:8px;padding:8px;cursor:pointer;font-weight:800;color:#0369a1">▦ ＋ Area baru di sini</button>`
++`<button onclick="addNodeAt(${p.x},${p.y})" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:8px;margin-top:4px;cursor:pointer">📦 ＋ Perangkat di sini</button>`;}
+document.body.appendChild(m);setTimeout(()=>document.addEventListener('click',()=>{document.getElementById('tmenu')?.remove();},{once:true}),50);
+}
+function editAreaText(aid){const a=(LAYERS[curLayer].areas||[]).find(x=>x.id===aid);if(!a)return;document.getElementById('tmenu')?.remove();const nl=prompt('Nama area:',a.label);if(nl===null||!nl)return;a.label=nl;drawTopo();saveTopo();}
+function setAreaFont(aid,s){const a=(LAYERS[curLayer].areas||[]).find(x=>x.id===aid);if(!a)return;a.fs=s;document.getElementById('tmenu')?.remove();drawTopo();saveTopo();}
+function setAreaSize(aid,w,h){const a=(LAYERS[curLayer].areas||[]).find(x=>x.id===aid);if(!a)return;a.w=w;a.h=h;document.getElementById('tmenu')?.remove();drawTopo();saveTopo();}
+function topoDblEdit(ev){const p=topoSvgPos(ev);const n=TOPO.find(n=>Math.abs(n.x-p.x)<62&&Math.abs(n.y-p.y)<30);if(n){editTopoText(n.id);return;}const a=areaAt(curLayer,p.x,p.y);if(a)editAreaText(a.id);}
+function delArea(aid){LAYERS[curLayer].areas=(LAYERS[curLayer].areas||[]).filter(x=>x.id!==aid);document.getElementById('tmenu')?.remove();drawTopo();saveTopo();log('> area dihapus');}
+function addAreaAt(x,y){const nama=prompt('Nama area baru:','Area Baru');if(!nama)return;document.getElementById('tmenu')?.remove();(LAYERS[curLayer].areas=LAYERS[curLayer].areas||[]).push({id:'a'+Date.now()%100000,label:nama,x:x-130,y:y-70,w:260,h:140});drawTopo();saveTopo();log('> area baru: '+nama);}
+function addNodeAt(x,y){document.getElementById('tmenu')?.remove();const id='n'+Date.now()%10000;TOPO.push({id,icon:'pc',label:'Baru',sub:'dummy',x,y});drawTopo();saveTopo();editTopoText(id);}
 function topoDiagnose(id){
 document.getElementById('tmenu')?.remove();
 const n=topoNode(id);
