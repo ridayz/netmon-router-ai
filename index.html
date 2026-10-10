@@ -116,7 +116,6 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div style="overflow:auto"><table style="width:100%;font-size:12.5px;border-collapse:collapse;background:#f8fafc;border-radius:10px;overflow:hidden">
 <thead><tr style="background:#e0f2fe;color:#0369a1"><th style="text-align:left;padding:7px 10px">Perangkat</th><th style="text-align:left;padding:7px 10px">DOWN jam</th><th style="text-align:left;padding:7px 10px">UP lagi jam</th><th style="text-align:left;padding:7px 10px">Total down</th><th style="text-align:left;padding:7px 10px">Sebab</th></tr></thead>
 <tbody id="downBody"></tbody></table></div>
-<div id="downTotal" style="font-size:12.5px;color:#0369a1;font-weight:700;margin-top:8px"></div>
 </div>
 </div>
 </div>
@@ -145,17 +144,13 @@ function cur(){return DB[curR].find(x=>x.n===curI);}
 let dl=Array(30).fill(0), ul=Array(30).fill(0), labels=Array(30).fill('');
 function renderRouters(){const el=document.getElementById('routers');el.innerHTML='';Object.keys(DB).forEach(r=>{const b=document.createElement('button');b.className='router-btn'+(r===curR?' active':'');b.textContent='📡 '+r;b.onclick=()=>{curR=r;curI=DB[r][0].n;renderRouters();renderIfaces();};el.appendChild(b);});}
 function fmtDur(ms){const s=Math.max(0,Math.floor(ms/1000));const m=Math.floor(s/60),h=Math.floor(m/60);if(h>0)return h+'j '+(m%60)+'m';if(m>0)return m+'m '+(s%60)+'d';return s+'d';}
-function clockStr(d){return d.toLocaleTimeString('id-ID',{hour12:false});}
+function clockStr(d){const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 function setLink(rName,p,oper,reason){reason=reason||'otomatis';
 if(oper==='down'&&p.oper!=='down'){p.oper='down';p.downSince=Date.now();p.flaps=(p.flaps||0)+1;log('> '+p.n+' DOWN ('+reason+')');try{pushAlarm('crit',rName+'/'+p.n,'DOWN ('+reason+') — catat mulai '+clockStr(new Date()));}catch(e){}try{DOWNTIME.unshift({dev:rName+'/'+p.n,downAt:Date.now(),downStr:clockStr(new Date()),upAt:null,upStr:'—',reason});renderDowntime();}catch(e){}}
 else if(oper==='up'&&p.oper==='down'){const dur=p.downSince?fmtDur(Date.now()-p.downSince):'?';p.oper='up';p.downSince=null;log('> '+p.n+' UP lagi setelah DOWN '+dur+' ('+reason+') ✅');try{pushAlarm('info',rName+'/'+p.n,'UP lagi setelah DOWN '+dur+' ('+reason+') ✅');}catch(e){}try{const open=DOWNTIME.find(e=>e.dev===(rName+'/'+p.n)&&!e.upAt);const now=new Date();if(open){open.upAt=now.getTime();open.upStr=clockStr(now);open.totalMs=open.upAt-open.downAt;}renderDowntime();}catch(e){}}
 if(rName===curR)renderIfaces();}
-function renderDowntime(){const tb=document.getElementById('downBody');if(!tb)return;if(!DOWNTIME.length){tb.innerHTML='<tr><td colspan="5" style="padding:10px;text-align:center;color:#64748b">Belum ada downtime. Device DOWN akan tercatat di sini.</td></tr>';document.getElementById('downTotal').textContent='';return;}
-tb.innerHTML=DOWNTIME.slice(0,30).map(e=>{const live=!e.upAt;const tot=live?fmtDur(Date.now()-e.downAt)+' ⏳':fmtDur(e.totalMs||0);return `<tr style="border-top:1px solid #e0f2fe"><td style="padding:6px 10px;font-weight:700">${e.dev}</td><td style="padding:6px 10px">${e.downStr}</td><td style="padding:6px 10px">${live?'<span style="color:#b91c1c;font-weight:700">masih DOWN</span>':e.upStr}</td><td style="padding:6px 10px;font-weight:700">${tot}</td><td style="padding:6px 10px">${e.reason}</td></tr>`;}).join('');
-const per={};DOWNTIME.forEach(e=>{const ms=e.upAt?(e.totalMs||0):(Date.now()-e.downAt);per[e.dev]=(per[e.dev]||0)+ms;});
-document.getElementById('downTotal').textContent='Total akumulasi: '+Object.keys(per).map(k=>k+' = '+fmtDur(per[k])).join(' • ');
-markAlarmsReadSafe();}
-function markAlarmsReadSafe(){}
+function renderDowntime(){const tb=document.getElementById('downBody');if(!tb)return;if(!DOWNTIME.length){tb.innerHTML='<tr><td colspan="5" style="padding:10px;text-align:center;color:#64748b">Belum ada downtime. Device DOWN akan tercatat di sini.</td></tr>';return;}
+tb.innerHTML=DOWNTIME.slice(0,30).map(e=>{const live=!e.upAt;const tot=live?fmtDur(Date.now()-e.downAt)+' ⏳':fmtDur(e.totalMs||0);return `<tr style="border-top:1px solid #e0f2fe"><td style="padding:6px 10px;font-weight:700">${e.dev}</td><td style="padding:6px 10px">${e.downStr}</td><td style="padding:6px 10px">${live?'<span style="color:#b91c1c;font-weight:700">masih DOWN</span>':e.upStr}</td><td style="padding:6px 10px;font-weight:700">${tot}</td><td style="padding:6px 10px">${e.reason}</td></tr>`;}).join('');}
 function refreshDurations(){document.querySelectorAll('[data-dur]').forEach(el=>{const key=el.getAttribute('data-dur');const sep=key.indexOf('|');const r=key.slice(0,sep),n=key.slice(sep+1);const p=(DB[r]||[]).find(x=>x.n===n);if(!p)return;if(p.oper==='down'&&p.downSince){el.textContent='DOWN '+fmtDur(Date.now()-p.downSince);}else{el.textContent=p.admin+'/'+p.oper;}});}
 let chaosOn=true; window.chaosOn=true;
 function renderIfaces(){const el=document.getElementById('ifaces');el.innerHTML='';DB[curR].forEach(i=>{const d=document.createElement('div');d.className='iface'+(i.n===curI?' active':'');let dot='green';if(i.admin==='down')dot='grey';else if(i.oper==='down')dot='grey';else if(i.fault!=='sehat'&&i.fault!=='sehat-sfp')dot='red';const st=(i.oper==='down'&&i.downSince)?('DOWN '+fmtDur(Date.now()-i.downSince)):(i.admin+'/'+i.oper);d.innerHTML=`<span><span class="dot ${dot}"></span>${i.n}</span><span data-dur="${curR}|${i.n}">${st}</span>`;d.onclick=()=>{curI=i.n;renderIfaces();};d.oncontextmenu=(ev)=>{ev.preventDefault();curI=i.n;showCtx(ev.clientX,ev.clientY);};el.appendChild(d);});refresh();}
