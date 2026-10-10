@@ -106,7 +106,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="detectPubIp()">🌐 Deteksi IP-ku</button>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="addTopoNode()">＋ Tambah perangkat</button>
 <button class="ai-btn ghost" style="width:auto;padding:8px 14px" onclick="resetTopo()">↩ Reset posisi</button>
-<span style="color:#64748b">drag node untuk geser • klik kanan node = ganti icon (internet/router/switch/PC/server/firewall)</span>
+<span style="color:#64748b">drag node • klik kanan = ganti icon / AI diagnosa • <span style="color:#fb923c;font-weight:800">━ FO</span> • <span style="color:#38bdf8;font-weight:800">━ LAN</span> • merah putus-putus = DOWN</span>
 </div>
 <svg id="topoSvg" width="100%" height="460" style="background:linear-gradient(180deg,#e0f2fe,#fff);border:2px solid #bae6fd;border-radius:14px;margin-top:10px;touch-action:none"></svg>
 <div id="topoList" style="font-size:12px;color:#475569;margin-top:8px"></div>
@@ -378,7 +378,7 @@ nodes:[
 {id:'apA',icon:'pc',label:'AP A4.1',sub:'flapping',x:250,y:200,db:'AP A4.1'},
 {id:'apP',icon:'pc',label:'AP Pavilion 1',sub:'asrama',x:430,y:310,db:'AP Pavilion 1'},
 ],
-links:[['iforte','swForte'],['swForte','swNoc'],['swNoc','swSrv'],['swSrv','rPu'],['rPu','rIctel'],['rIctel','olt'],['olt','ontK'],['ontK','swR'],['swR','apA'],['swR','apP']]},
+links:[['iforte','swForte','fo'],['swForte','swNoc','fo'],['swNoc','swSrv','fo'],['swSrv','rPu','fo'],['rPu','rIctel','fo'],['rIctel','olt','fo'],['olt','ontK','fo'],['ontK','swR','lan'],['swR','apA','lan'],['swR','apP','lan']]},
 kij:{label:'ICTEL KIJ',vb:'0 0 900 300',
 nodes:[
 {id:'isp',icon:'internet',label:'ISP',sub:'uplink KIJ',x:90,y:150},
@@ -389,7 +389,7 @@ nodes:[
 {id:'ten1',icon:'pc',label:'Tenant A',sub:'user',x:815,y:80},
 {id:'ten2',icon:'pc',label:'Tenant B',sub:'user',x:815,y:220},
 ],
-links:[['isp','swK'],['swK','oltK'],['oltK','ont1'],['oltK','ont2'],['ont1','ten1'],['ont2','ten2']]}};
+links:[['isp','swK','fo'],['swK','oltK','fo'],['oltK','ont1','fo'],['oltK','ont2','fo'],['ont1','ten1','lan'],['ont2','ten2','lan']]}};
 let curLayer='pu';
 let TOPO=LAYERS.pu.nodes;
 let LINKS=LAYERS.pu.links;
@@ -402,7 +402,7 @@ function drawTopo(){
 const svg=document.getElementById('topoSvg');const W=svg.clientWidth||900;
 svg.setAttribute('viewBox',LAYERS[curLayer].vb);
 svg.innerHTML='';
-LINKS.forEach(([a,b])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const bad=topoSt(B)==='bad';const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',bad?'#f87171':'#38bdf8');l.setAttribute('stroke-width',bad?'3':'2.5');if(bad)l.setAttribute('stroke-dasharray','7 5');svg.appendChild(l);});
+LINKS.forEach(([a,b,med])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const bad=topoSt(B)==='bad';const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',bad?'#f87171':(med==='fo'?'#fb923c':'#38bdf8'));l.setAttribute('stroke-width',bad?'3':'3');if(bad)l.setAttribute('stroke-dasharray','7 5');svg.appendChild(l);});
 TOPO.forEach(n=>{
 const st=topoSt(n);
 const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('transform',`translate(${n.x},${n.y})`);g.style.cursor='grab';
@@ -453,7 +453,7 @@ setTimeout(()=>{try{runAiPlan();}catch(e){}},1600);
 }
 function setTopoIcon(id,icon){const n=topoNode(id);if(n){n.icon=icon;}document.getElementById('tmenu')?.remove();drawTopo();}
 function delTopoNode(id){TOPO=TOPO.filter(n=>n.id!==id);LINKS=LINKS.filter(([a,b])=>a!==id&&b!==id);drawTopo();}
-function addTopoNode(){const id='n'+Date.now()%10000;TOPO.push({id,icon:'pc',label:'Baru',sub:'dummy',x:300+Math.random()*200,y:150+Math.random()*80});const near=TOPO[2]?.id;if(near)LINKS.push([near,id]);drawTopo();}
+function addTopoNode(){const id='n'+Date.now()%10000;TOPO.push({id,icon:'pc',label:'Baru',sub:'dummy',x:300+Math.random()*200,y:150+Math.random()*80});const near=TOPO[2]?.id;if(near)LINKS.push([near,id,'lan']);drawTopo();}
 async function detectPubIp(){const el=document.getElementById('pubIp');el.textContent='mendeteksi...';try{const r=await fetch('https://api.ipify.org?format=json');const j=await r.json();el.textContent=j.ip+' (asli)';const inet=topoNode('inet');if(inet){inet.sub=j.ip;inet.label='IP Publik';}drawTopo();}catch(e){el.textContent='203.0.113.10 (dummy, offline)';}}
 </script>
 </body>
