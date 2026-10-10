@@ -469,7 +469,19 @@ let lastAlarmAt={};
 function maybeAlarm(dev,sev,msg){const k=dev+sev;const now=Date.now();if(now-(lastAlarmAt[k]||0)<20000)return;lastAlarmAt[k]=now;pushAlarm(sev,dev,msg);}
 const _tick=tick;
 // ---- TABS ----
-function aiCtx(){return {layer:curLayer,layerLabel:(LAYERS[curLayer]||{}).label||curLayer,nodes:TOPO.map(n=>({label:n.label,sub:n.sub,icon:n.icon,st:(typeof topoSt==='function'?topoSt(n):(n.st||''))})),selected:curR+'/'+((cur()||{}).n||''),alarms:(typeof ALARMS!=='undefined'?ALARMS:[]).slice(0,15).map(a=>({t:a.t,sev:a.sev,dev:a.dev,msg:a.msg})),downtime:(typeof DOWNTIME!=='undefined'?DOWNTIME:[]).slice(0,10).map(d=>({dev:d.dev,downStr:d.downStr,upStr:d.upAt?d.upStr:null,totalMs:d.totalMs||null})),live:Object.keys(typeof LIVE!=='undefined'?LIVE:{}),liveMap:Object.fromEntries(Object.entries(typeof LIVE!=='undefined'?LIVE:{}).map(([k,L])=>[k,{ip:(L||{}).ip||'',identity:(L||{}).identity||''}]))};}
+function aiCtx(){
+  const dev=curR+'/'+((cur()||{}).n||'');
+  const L=(typeof LIVE!=='undefined'&&LIVE)?LIVE[curR]:null;
+  const devAlarms=(typeof ALARMS!=='undefined'?ALARMS:[]).filter(a=>a.dev===curR||a.dev===dev).slice(0,8);
+  const devDown=(typeof DOWNTIME!=='undefined'?DOWNTIME:[]).filter(d=>d.dev===curR||d.dev===dev).slice(0,6);
+  return {
+    selected:dev,
+    device:(typeof DB!=='undefined'&&DB[curR]||[]).map(x=>({n:x.n,type:x.type,admin:x.admin,oper:x.oper,fault:x.fault||'sehat',speed:x.speed||'-',dl:x.dl||null,ul:x.ul||null})),
+    live:(L&&L.ip)?{ip:L.ip,identity:L.identity||'',ifaces:(L.ifaces||[]).map(i=>({n:i.n,admin:i.admin,oper:i.oper,dl:i.dl||null,ul:i.ul||null}))}:null,
+    alarms:devAlarms.map(a=>({t:a.t,sev:a.sev,dev:a.dev,msg:a.msg})),
+    downtime:devDown.map(d=>({dev:d.dev,downStr:d.downStr,upStr:d.upAt?d.upStr:null,totalMs:d.totalMs||null}))
+  };
+}
 function chatBubble(who,text){const box=document.getElementById('chatBox');if(!box)return;const d=document.createElement('div');d.style.cssText=who==='user'?'align-self:flex-end;background:#0284c7;color:#fff;border-radius:12px 12px 4px 12px;padding:8px 12px;max-width:85%;white-space:pre-wrap':'align-self:flex-start;background:#fff;border:2px solid #bae6fd;border-radius:12px 12px 12px 4px;padding:8px 12px;max-width:85%;white-space:pre-wrap;color:#0c4a6e';d.textContent=(who==='user'?'🧑 ':'🤖 ')+text;box.appendChild(d);box.scrollTop=box.scrollHeight;return d;}
 function chatAsk(t){document.getElementById('chatIn').value=t;chatSend();}
 async function chatSend(){
