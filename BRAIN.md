@@ -13,7 +13,7 @@ Live file: `index.html` (alias `netmon-dummy.html`), single-file, Chart.js via C
 - Diagram statis archify: `archify-output/topologi-netmon.html` (9/9 showcase pass, spec sha `2def28…`).
 
 ## 3. Fitur dummy v1 (jangan dihapus tanpa izin user)
-1. Sidebar: pilih Router A/B/C → list interface (klik = monitor, **klik kanan** = disable/enable + simulasi cabut kabel).
+1. Sidebar PILIH PERANGKAT ikut topologi (grup Manage ICTel PU: Router PU, Router Ictel, SW Ictel NOC, GPON/OLT, ONT Kampus, SW Ruijie PoE, AP A4.1, AP Pavilion 1; grup ICTEL KIJ: Switch ICTel, OLT KIJ, ONT-01, ONT-02) + dot status live. Klik node topologi = pilih perangkat di sidebar. Status sinkron dua arah (flap di dashboard → warna node berubah).
 2. Kartu DL/UL/latency/loss + grafik realtime 1 detik.
 3. Layer 1 copper TDR: OPEN/SHORT + estimasi jarak fault + PoE + speed.
 4. Layer 1 SFP DDM: TX/RX dBm, redaman = TX−RX, temp/volt/bias, LOS alarm.
