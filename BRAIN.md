@@ -21,7 +21,8 @@ Live file: `index.html` (alias `netmon-dummy.html`), single-file, Chart.js via C
 6. **Router AI full-driven** (prinsip inti): alur = `Diagnosa → 1 arahan → Jalankan Arahan AI` + toggle auto-resolve.
    DILARANG tambah tombol aksi manual (flap/PoE/100M/enable manual) — semua physical action hanya atas arahan AI.
 7. Tab Topologi: SVG pastel, node draggable, **klik kanan node = ganti icon** (internet 🌐 / router vector ala MikroTik pastel / switch 🔀 / PC 🖥 / server 🗄 / firewall 🧱), tambah/hapus node, IP publik via `api.ipify.org` fallback dummy `203.0.113.10`.
-8. Tab 🔔 Log/Alarm: event timestamp + severity (info/warn/crit) + filter + badge merah + bunyi opsional + bersihkan. Otomatis catat: DOWN (crit, throttle 20 dtk/device), loss > 5% (warn), disable manual (crit), hasil diagnosa + eksekusi AI.
+8. Tab 🔔 Log/Alarm: event timestamp + severity (info/warn/crit) + filter + badge merah + bunyi opsional + bersihkan. Otomatis catat: DOWN (crit + jam mulai, throttle 20 dtk/device), UP-lagi-setelah-DOWN + durasinya (info), loss > 5% (warn), disable manual (crit), hasil diagnosa + eksekusi AI.
+9. Hidup kayak device asli: interface faulty (kabel-jelek/redaman-tinggi) flapping down-pulih sendiri tiap ~7 dtk; yang sehat blip langka; putus total/no-light tetap DOWN. Sidebar + status pill tampilkan durasi DOWN live (Xj/Ym/Zd). Toggle "Simulasi realistis" di sidebar.
 
 ## 4. Data fault dummy (skenario uji)
 - `ether4-CCTV` = putus-23m (TDR OPEN @23m, PoE 0W) → arahan: PoE cycle + tiket teknisi.
@@ -50,4 +51,5 @@ Live file: `index.html` (alias `netmon-dummy.html`), single-file, Chart.js via C
 - 2026-10-09: +Layer 1 TDR/DDM + full AI-driven (hapus tombol manual) + klik kanan disable.
 - 2026-10-09: +Tab Topologi archify-style + icon internet 🌐 + deteksi IP publik.
 - 2026-10-10: router jadi vector ala MikroTik pastel (lainnya balik emoji); +Tab 🔔 Log/Alarm (badge + filter + bunyi).
+- 2026-10-10: durasi DOWN kecatet (sidebar + status pill live, format Xj/Ym/Zd) + flapping realistis (kabel-jelek/SFP-redaman down-pulih sendiri, sehat blip langka, putus/no-light tetap down) + toggle simulasi di sidebar + alarm DOWN/UP-dengan-durasi.
 - 2026-10-09: otak disimpan (AGENTS.md + BRAIN.md, BRAIN di-push).
