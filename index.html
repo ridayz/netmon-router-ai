@@ -74,6 +74,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div class="grid2">
 <div class="panel"><h3>📈 Traffic Realtime</h3><canvas id="chart" height="130"></canvas>
 <div id="ratioBox" style="margin-top:8px;font-size:13px;font-weight:700;background:#f0f9ff;border:2px solid #bae6fd;border-radius:10px;padding:8px 12px;color:#0369a1">Rasio DL:UL — menunggu data...</div>
+<button id="swapBtn" onclick="toggleSwap()" class="ai-btn ghost" style="display:none;width:auto;padding:6px 12px;margin-top:6px;font-size:12px">⇄ Balik DL/UL (port LAN)</button>
 <div style="margin-top:12px"><h3>🔌 Layer 1 — Copper / Cable Test (TDR)</h3><div id="tdr"></div></div>
 </div>
 <div class="panel"><h3>🤖 Router AI — Full Diagnosa</h3>
@@ -350,13 +351,18 @@ function ensureDetectGroup(){let g=SIDEBAR.find(g=>g.layer==='Hasil Auto-Detect'
 function restoreLive(){for(const key in LIVE){const L=LIVE[key];if(!L||!L.ifaces)continue;if(!DB[key])DB[key]=JSON.parse(JSON.stringify(L.ifaces));const g=ensureDetectGroup();if(!g.devs.includes(key))g.devs.push(key);}try{document.getElementById('collUrl').value=localStorage.getItem('netmon-coll')||'http://localhost:8932';}catch(e){}}
 async function collGet(path,timeoutMs){const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),timeoutMs||20000);try{const r=await fetch(COLL()+path,{signal:ctl.signal});return await r.json();}finally{clearTimeout(to);}}
 setInterval(async()=>{try{await collGet('/health',5000);const d=document.getElementById('collDot');if(d){d.textContent='🟢';d.title='collector nyambung';}}catch(e){const d=document.getElementById('collDot');if(d){d.textContent='🔴';d.title='collector MATI — jalankan node server.js di netmon-collector';}}},15000);
+function toggleSwap(){const L=LIVE[curR];if(!L)return;const c=cur();L.swap=L.swap||{};const curSw=L.swap[c.n]===undefined?(!/isp|wan|uplink|bgp|internet/i.test(c.n)):!!L.swap[c.n];L.swap[c.n]=!curSw;persistLive();log('> DL/UL '+curR+'/'+c.n+' dibalik manual ('+(L.swap[c.n]?'Tx=DL':'Rx=DL')+')');}
+// tampilkan tombol swap hanya saat device live
+setInterval(()=>{try{const b=document.getElementById('swapBtn');if(b)b.style.display=LIVE[curR]?'inline-block':'none';}catch(e){}},1000);
 setInterval(async()=>{try{
 const L=LIVE[curR];if(!L)return;const c=cur();if(!c||!c.live)return;
 const j=await collGet(`/api/traffic?ip=${L.ip}&iface=${encodeURIComponent(c.n)}&user=${encodeURIComponent(L.user||'')}&pass=${encodeURIComponent(L.pass||'')}`,9000);
 if(!j.ok)throw new Error(j.error||'traffic gagal');
-dl.push(j.rxMbps||0);dl.shift();ul.push(j.txMbps||0);ul.shift();chart.update();
-document.getElementById('dl').textContent=(j.rxMbps||0).toFixed(1)+' Mbps 🟢';
-document.getElementById('ul').textContent=(j.txMbps||0).toFixed(1)+' Mbps 🟢';
+const sw=(L.swap||{})[c.n]===undefined?(!/isp|wan|uplink|bgp|internet/i.test(c.n)):!!(L.swap||{})[c.n];
+const dMb=sw?j.txMbps:j.rxMbps, uMb=sw?j.rxMbps:j.txMbps;
+dl.push(dMb||0);dl.shift();ul.push(uMb||0);ul.shift();chart.update();
+document.getElementById('dl').textContent=(dMb||0).toFixed(1)+' Mbps 🟢';
+document.getElementById('ul').textContent=(uMb||0).toFixed(1)+' Mbps 🟢';
 L._err=0;
 }catch(e){try{const L=LIVE[curR];if(L){L._err=(L._err||0)+1;if(L._err===4)log('> live '+curR+' putus: '+e.message+' (cek collector)');}}catch(_){}}},3000);
 restoreLive();
