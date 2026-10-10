@@ -58,6 +58,7 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div style="background:#e0f2fe;border-radius:12px;padding:4px;display:flex;gap:4px">
 <button id="tabBtnDash" onclick="showTab('dash')" style="border:0;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;background:#0284c7;color:#fff">Dashboard</button>
 <button id="tabBtnTopo" onclick="showTab('topo')" style="border:0;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;background:#fff;color:#0369a1">Topologi</button>
+<button id="tabBtnLog" onclick="showTab('log')" style="border:0;border-radius:8px;padding:8px 16px;font-weight:800;cursor:pointer;background:#fff;color:#0369a1">🔔 Log/Alarm <span id="alarmBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px">0</span></button>
 </div></div></div>
 <div id="tab-dash" style="display:flex;flex-direction:column;gap:14px">
 <div class="cards">
@@ -99,6 +100,19 @@ body{margin:0;background:#f0f9ff;color:#0c4a6e}
 <div style="font-size:12px;margin-top:6px">Lihat juga diagram archify statis: <a href="../../archify-output/topologi-netmon.html" target="_blank">archify-output/topologi-netmon.html</a> (9/9 showcase pass)</div>
 </div>
 </div>
+<div id="tab-log" style="display:none;flex-direction:column;gap:12px">
+<div class="panel"><h3>🔔 System Log & Alarm</h3>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px">
+<button class="ai-btn ghost" style="width:auto;padding:7px 12px" onclick="setLogFilter('all')">Semua</button>
+<button class="ai-btn ghost" style="width:auto;padding:7px 12px" onclick="setLogFilter('info')">ℹ Info</button>
+<button class="ai-btn ghost" style="width:auto;padding:7px 12px" onclick="setLogFilter('warn')">⚠ Warning</button>
+<button class="ai-btn ghost" style="width:auto;padding:7px 12px" onclick="setLogFilter('crit')">🚨 Critical</button>
+<label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-left:auto;cursor:pointer"><input type="checkbox" id="alarmSound" style="width:15px;height:15px"> Bunyi alarm</label>
+<button class="ai-btn ghost" style="width:auto;padding:7px 12px" onclick="clearAlarms()">🧹 Bersihkan</button>
+</div>
+<div id="alarmList" style="display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:420px;overflow:auto"></div>
+</div>
+</div>
 </div>
 </div>
 <script>
@@ -131,7 +145,7 @@ function showCtx(x,y){hideCtx();const c=cur();const m=document.createElement('di
 +`<button onclick="simUnplug()" style="width:100%;text-align:left;border:0;background:#f0f9ff;border-radius:8px;padding:8px;cursor:pointer;margin-top:4px">🔌 Simulasi cabut kabel</button>`;
 document.body.appendChild(m);setTimeout(()=>document.addEventListener('click',hideCtx,{once:true}),50);}
 function hideCtx(){document.getElementById('ctx')?.remove();}
-function setAdmin(s){hideCtx();const c=cur();c.admin=s;if(s==='down'){c.oper='down';c.prevFault=c.fault;c.fault='disabled-human';log('> kamu DISABLE '+c.n+' (klik kanan)');document.getElementById('aiText').textContent=`⚠️ ${c.n} di-disable manual.\nAI siap hidupin lagi — klik "AI Hidupin Port Ini" atau nyalakan Auto-resolve.`;}else{c.oper='up';c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('> kamu ENABLE '+c.n+' manual');}renderIfaces();}
+function setAdmin(s){hideCtx();const c=cur();c.admin=s;if(s==='down'){c.oper='down';c.prevFault=c.fault;c.fault='disabled-human';log('> kamu DISABLE '+c.n+' (klik kanan)');try{pushAlarm('crit',curR+'/'+c.n,'Port di-disable manual');}catch(e){}document.getElementById('aiText').textContent=`⚠️ ${c.n} di-disable manual.\nAI siap hidupin lagi — klik "AI Hidupin Port Ini" atau nyalakan Auto-resolve.`;}else{c.oper='up';c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('> kamu ENABLE '+c.n+' manual');}renderIfaces();}
 function simUnplug(){hideCtx();const c=cur();if(c.type==='sfp'){c.admin='up';c.oper='down';c.fault='no-light';}else{c.admin='up';c.oper='down';c.fault='putus-23m';c.poe='0W';}log('> simulasi kabel '+c.n+' DICABUT');renderIfaces();}
 function aiAutoEnable(){const c=cur();if(c.admin==='down'){log('> AI menghidupkan '+c.n+' ...');document.getElementById('aiText').textContent='🤖 AI: enable port '+c.n+' ...';setTimeout(()=>{c.admin='up';c.oper='up';if(c.fault==='disabled-human')c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('✔ AI: '+c.n+' sudah UP lagi ✅');document.getElementById('aiText').textContent='✅ AI berhasil hidupin '+c.n+'.\nDicatat di log: auto-enable oleh AI (approval kamu via tombol).';renderIfaces();},900);}else{log('> AI: '+c.n+' sudah UP, nggak perlu dihidupin');}}
 setInterval(()=>{const on=document.getElementById('autoFix')?.checked;if(!on)return;for(const r in DB){for(const p of DB[r]){if(p.admin==='down'&&p.fault==='disabled-human'&&!p._aiFix){p._aiFix=true;const where=`${r}/${p.n}`;log(`> AUTO-RESOLVE: AI deteksi ${where} disabled → hidupin sendiri...`);setTimeout(()=>{p.admin='up';p.oper='up';p.fault=p.prevFault&&p.prevFault!=='disabled-human'?p.prevFault:'sehat';p._aiFix=false;log(`✔ AUTO-RESOLVE: ${where} UP ✅`);if(r===curR)renderIfaces();},2500);}}}},1500);
@@ -174,7 +188,7 @@ document.getElementById('err').innerHTML=`<div class="kv"><span>CRC error</span>
 }
 const ctx=document.getElementById('chart');
 const chart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Download',data:dl,borderColor:'#0284c7',backgroundColor:'rgba(186,230,253,.5)',fill:true,tension:.4},{label:'Upload',data:ul,borderColor:'#38bdf8',borderDash:[6,4],fill:false,tension:.4}]},options:{animation:false,plugins:{legend:{labels:{color:'#0369a1'}}},scales:{y:{beginAtZero:true,grid:{color:'#e0f2fe'}},x:{display:false}}}});
-function tick(){const c=cur();const down=c.oper==='down';let d=down?0:20+Math.random()*60,u=down?0:5+Math.random()*20;if(c.fault==='kabel-jelek'||c.fault==='redaman-tinggi'){if(Math.random()>0.8)d*=0.25;}dl.push(d);dl.shift();ul.push(u);ul.shift();chart.update();document.getElementById('dl').textContent=d.toFixed(1)+' Mbps';document.getElementById('ul').textContent=u.toFixed(1)+' Mbps';document.getElementById('ping').textContent=down?'—':(8+Math.random()*20).toFixed(0)+' ms';const loss=down?100:(d<8?8+Math.random()*8:Math.random()*1);document.getElementById('loss').textContent=loss.toFixed(1)+' %';}
+function tick(){const c=cur();const down=c.oper==='down';let d=down?0:20+Math.random()*60,u=down?0:5+Math.random()*20;if(c.fault==='kabel-jelek'||c.fault==='redaman-tinggi'){if(Math.random()>0.8)d*=0.25;}dl.push(d);dl.shift();ul.push(u);ul.shift();chart.update();document.getElementById('dl').textContent=d.toFixed(1)+' Mbps';document.getElementById('ul').textContent=u.toFixed(1)+' Mbps';document.getElementById('ping').textContent=down?'—':(8+Math.random()*20).toFixed(0)+' ms';const loss=down?100:(d<8?8+Math.random()*8:Math.random()*1);document.getElementById('loss').textContent=loss.toFixed(1)+' %';try{if(down)maybeAlarm(curR+'/'+c.n,'crit','DOWN — oper down, cek diagnosa AI');else if(loss>5)maybeAlarm(curR+'/'+c.n,'warn','Loss tinggi '+loss.toFixed(1)+'%');}catch(e){}}
 function log(m){const el=document.getElementById('log');el.textContent+=m+'\n';el.scrollTop=el.scrollHeight;}
 function aiDiagnose(){
 const c=cur();log('> AI diagnosa '+c.n+' ...');
@@ -187,21 +201,37 @@ else if(c.fault==='no-light'){txt=`HASIL AI — SFP NO LIGHT (96%)\n• RX -40 d
 else{txt=`HASIL AI — Sehat (98%)\n• Tidak ada aksi. Lanjut pantau.`;plan=null;}
 window._aiPlan=plan;
 document.getElementById('aiText').textContent=txt+(plan?`\n\n➡ ARAHAN AI: ${plan.label}\nKlik "Jalankan Arahan AI".`:`\n\n➡ Tidak ada aksi.`);
-log('> AI selesai: '+c.fault+(plan?' → arahan: '+plan.label:''));
+log('> AI selesai: '+c.fault+(plan?' → arahan: '+plan.label:''));try{pushAlarm(plan?'warn':'info',curR+'/'+c.n,'AI diagnosa: '+c.fault+(plan?' → '+plan.label:' (sehat)'));}catch(e){}
 }
 function runAiPlan(){
 const c=cur();const plan=window._aiPlan;
 if(!plan){log('> tidak ada arahan AI. Diagnosa dulu.');return;}
 log(`> jalankan arahan AI: ${plan.label} @ ${c.n} ...`);
-if(plan.aksi==='enable'){setTimeout(()=>{c.admin='up';c.oper='up';if(c.fault==='disabled-human')c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('✔ AI: port UP ✅ + aktor dicatat');renderIfaces();},900);}
-else if(plan.aksi==='downgrade-100m'){setTimeout(()=>{c.speed='100M-Full';log('✔ AI: speed → 100M-Full (stabil sementara) + tiket recabling dibuat');renderIfaces();},900);}
-else if(plan.aksi==='poe-lalu-tiket'){setTimeout(()=>{log('✔ AI: PoE cycle 10 dtk... ujung tetap mati → tiket teknisi dibuat (titik 23m)');},1200);}
-else if(plan.aksi==='sfp-workaround'){setTimeout(()=>{log('✔ AI: instruksi ke teknisi terkirim + speed workaround diterapkan (dummy)');},900);}
-else if(plan.aksi==='tiket-fiber'){setTimeout(()=>{log('✔ AI: tiket fiber dibuat → cek patchcord/ODP/bending');},700);}
+if(plan.aksi==='enable'){setTimeout(()=>{c.admin='up';c.oper='up';if(c.fault==='disabled-human')c.fault=c.prevFault&&c.prevFault!=='disabled-human'?c.prevFault:'sehat';log('✔ AI: port UP ✅ + aktor dicatat');try{pushAlarm('info',curR+'/'+c.n,'AI resolve: port di-enable kembali ✅');}catch(e){}renderIfaces();},900);}
+else if(plan.aksi==='downgrade-100m'){setTimeout(()=>{c.speed='100M-Full';log('✔ AI: speed → 100M-Full (stabil sementara) + tiket recabling dibuat');try{pushAlarm('warn',curR+'/'+c.n,'AI workaround: speed → 100M-Full + tiket recabling');}catch(e){}renderIfaces();},900);}
+else if(plan.aksi==='poe-lalu-tiket'){setTimeout(()=>{log('✔ AI: PoE cycle 10 dtk... ujung tetap mati → tiket teknisi dibuat (titik 23m)');try{pushAlarm('crit',curR+'/'+c.n,'Layer 1 OPEN → tiket teknisi (titik 23m)');}catch(e){}},1200);}
+else if(plan.aksi==='sfp-workaround'){setTimeout(()=>{log('✔ AI: instruksi ke teknisi terkirim + speed workaround diterapkan (dummy)');try{pushAlarm('warn',curR+'/'+c.n,'SFP redaman gede → instruksi teknisi terkirim');}catch(e){}},900);}
+else if(plan.aksi==='tiket-fiber'){setTimeout(()=>{log('✔ AI: tiket fiber dibuat → cek patchcord/ODP/bending');try{pushAlarm('crit',curR+'/'+c.n,'SFP NO LIGHT → tiket fiber');}catch(e){}},700);}
 }
 renderRouters();renderIfaces();setInterval(tick,1000);
+// ---- SYSTEM LOG & ALARM ----
+let ALARMS=[], logFilter='all', unreadCrit=0;
+function tsNow(){const d=new Date();return d.toLocaleTimeString('id-ID',{hour12:false});}
+function pushAlarm(sev,dev,msg){ALARMS.unshift({t:tsNow(),sev,dev,msg});if(ALARMS.length>200)ALARMS.pop();if(sev==='crit'){unreadCrit++;updateBadge();beep();}renderAlarms();}
+function updateBadge(){const b=document.getElementById('alarmBadge');if(unreadCrit>0){b.style.display='inline-block';b.textContent=unreadCrit>99?'99+':unreadCrit;}else b.style.display='none';}
+function markAlarmsRead(){unreadCrit=0;updateBadge();}
+function setLogFilter(f){logFilter=f;renderAlarms();}
+function clearAlarms(){ALARMS=[];unreadCrit=0;updateBadge();renderAlarms();log('> alarm dibersihkan');}
+function beep(){if(!document.getElementById('alarmSound')?.checked)return;try{const c=new (window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=0.08;o.start();o.stop(c.currentTime+0.25);}catch(e){}}
+function renderAlarms(){const el=document.getElementById('alarmList');if(!el)return;const rows=ALARMS.filter(a=>logFilter==='all'||a.sev===logFilter);if(!rows.length){el.innerHTML='<div style="font-size:13px;color:#64748b;background:#f0f9ff;border:2px dashed #bae6fd;border-radius:12px;padding:14px;text-align:center">Belum ada event. Gangguan / DOWN / diagnosa AI akan tercatat di sini.</div>';return;}el.innerHTML=rows.map(a=>{const bg=a.sev==='crit'?'#fee2e2':(a.sev==='warn'?'#fef9c3':'#e0f2fe');const fg=a.sev==='crit'?'#b91c1c':(a.sev==='warn'?'#a16207':'#0369a1');const ic=a.sev==='crit'?'🚨':(a.sev==='warn'?'⚠':'ℹ');return `<div style="background:${bg};color:${fg};border-radius:10px;padding:8px 12px;font-size:13px"><b>${ic} [${a.t}] ${a.dev}</b> — ${a.msg}</div>`;}).join('');}
+// seed awal
+pushAlarm('info','sistem','NetMonitor dummy mulai. Menampilkan data simulasi.');
+// sambung tick → alarm otomatis tiap ada DOWN/loss tinggi (throttle 20 dtk per device)
+let lastAlarmAt={};
+function maybeAlarm(dev,sev,msg){const k=dev+sev;const now=Date.now();if(now-(lastAlarmAt[k]||0)<20000)return;lastAlarmAt[k]=now;pushAlarm(sev,dev,msg);}
+const _tick=tick;
 // ---- TABS ----
-function showTab(w){const d=w==='dash';document.getElementById('tab-dash').style.display=d?'flex':'none';document.getElementById('tab-topo').style.display=d?'none':'flex';document.getElementById('tabBtnDash').style.background=d?'#0284c7':'#fff';document.getElementById('tabBtnDash').style.color=d?'#fff':'#0369a1';document.getElementById('tabBtnTopo').style.background=d?'#fff':'#0284c7';document.getElementById('tabBtnTopo').style.color=d?'#0369a1':'#fff';if(!d)drawTopo();}
+function showTab(w){const tabs={dash:'tab-dash',topo:'tab-topo',log:'tab-log'};for(const k in tabs){document.getElementById(tabs[k]).style.display=(k===w)?'flex':'none';}const btns={dash:'tabBtnDash',topo:'tabBtnTopo',log:'tabBtnLog'};for(const k in btns){const on=(k===w);document.getElementById(btns[k]).style.background=on?'#0284c7':'#fff';document.getElementById(btns[k]).style.color=on?'#fff':'#0369a1';}if(w==='topo')drawTopo();if(w==='log'){renderAlarms();markAlarmsRead();}}
 // ---- TOPOLOGI DUMMY (archify-style pastel) ----
 const ICONS={router:'Router',switch:'🔀',pc:'🖥',server:'🗄',firewall:'🧱',internet:'🌐'};
 function iconSvg(t){
