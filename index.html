@@ -415,8 +415,7 @@ async function acTick(){
         AC.lastAct[idk]=now;
         // aksi aman: enable (human-error) — disable tidak pernah
         try{
-          await collGet(`/api/discover?ip=${L.ip}&user=${encodeURIComponent(L.user||'')}&pass=${encodeURIComponent(L.pass||'')}`,15000); // keepalive
-          const r=await fetch(COLL()+'/api/ai-act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket:'AC-'+idk})});
+          const r=await fetch(COLL()+'/api/iface-enable?ip='+encodeURIComponent(L.ip)+'&iface='+encodeURIComponent(f.name)+'&user='+encodeURIComponent(process.env.W_USER||L.user||'')+'&pass='+encodeURIComponent(process.env.W_PASS||L.pass||''),{method:'POST'});
           if(r.ok){const jj=await r.json();if(jj.ok){pushAlarm('info',idk,`Auto-Care: enable ${f.name} (aman)`);log(`> Auto-Care: ${idk} enable (down ${Math.round(dur/1000)} dtk)`);continue;}}
         }catch(e){}
         // kalau enable nggak jalan / device tanpa tulis → tiket
