@@ -145,9 +145,16 @@ const DB = {
  {n:'vlan31-kampus',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
  {n:'to-noc',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
 ],
-'SW Ictel NOC': [
- {n:'to-gpon',type:'sfp',admin:'up',oper:'up',fault:'redaman-tinggi',poe:'-',speed:'1G'},
- {n:'to-srvPU',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+'Switch Iforte': [
+ {n:'uplink-isp',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+],
+'Switch ICTel PU': [
+ {n:'to-routerpu',type:'sfp',admin:'up',oper:'up',fault:'redaman-tinggi',poe:'-',speed:'1G'},
+ {n:'from-iforte',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+],
+'SW Ictel Core': [
+ {n:'from-rictel',type:'copper',admin:'up',oper:'up',fault:'sehat',poe:'-',speed:'1G'},
+ {n:'to-olt',type:'sfp',admin:'up',oper:'up',fault:'sehat-sfp',poe:'-',speed:'10G'},
 ],
 'GPON / OLT': [
  {n:'pon1-kampus',type:'sfp',admin:'up',oper:'down',fault:'no-light',poe:'-',speed:'10G'},
@@ -182,7 +189,7 @@ const DB = {
 ],
 };
 const SIDEBAR=[
-{layer:'Manage ICTel PU',devs:['Router PU','Router Ictel','SW Ictel NOC','GPON / OLT','ONT Kampus','SW Ruijie PoE','AP A4.1','AP Pavilion 1']},
+{layer:'Manage ICTel PU',devs:['Switch Iforte','Switch ICTel PU','Router PU','Router Ictel','SW Ictel Core','GPON / OLT','ONT Kampus','SW Ruijie PoE','AP A4.1','AP Pavilion 1']},
 {layer:'ICTEL KIJ',devs:['Switch ICTel','OLT KIJ','ONT-01','ONT-02']},
 ];
 let curR='Router Ictel', curI='vlan34-asrama';
@@ -369,21 +376,27 @@ if(t==='swpoe')return iconSvg('switch').replace('</g>','<path d="M15,-24 l-6,9 h
 return null;
 }
 const LAYERS={
-pu:{label:'Manage ICTel PU',vb:'0 0 920 400',
-nodes:[
-{id:'iforte',icon:'internet',label:'IForte / ISP',sub:'uplink 500M',x:80,y:70},
-{id:'swForte',icon:'switch',label:'Switch Iforte',sub:'edge',x:215,y:70},
-{id:'swNoc',icon:'switch',label:'SW Ictel NOC',sub:'area NOC',x:350,y:70,db:'SW Ictel NOC'},
-{id:'swSrv',icon:'switch',label:'SW Srv PU',sub:'server PU',x:485,y:70,db:'SW Ictel NOC'},
-{id:'rPu',icon:'router',label:'Router PU',sub:'BGP + IP publik',x:620,y:70,db:'Router PU'},
-{id:'rIctel',icon:'router',label:'Router Ictel',sub:'VLAN 31-40',x:770,y:70,db:'Router Ictel'},
-{id:'olt',icon:'olt',label:'GPON / OLT',sub:'sebar ONT',x:770,y:200,db:'GPON / OLT'},
-{id:'ontK',icon:'ont',label:'ONT Kampus',sub:'fiber OK',x:600,y:200,db:'ONT Kampus'},
-{id:'swR',icon:'swpoe',label:'SW Ruijie PoE',sub:'ke AP',x:430,y:200,db:'SW Ruijie PoE'},
-{id:'apA',icon:'ap',label:'AP A4.1',sub:'flapping',x:250,y:200,db:'AP A4.1'},
-{id:'apP',icon:'ap',label:'AP Pavilion 1',sub:'asrama',x:430,y:310,db:'AP Pavilion 1'},
+pu:{label:'Manage ICTel PU',vb:'0 0 980 440',
+areas:[
+{label:'Area Server ICTel',x:5,y:18,w:280,h:116},
+{label:'Area Server ICTel',x:450,y:178,w:310,h:116},
+{label:'Area Server President University',x:300,y:18,w:440,h:116},
+{label:'Area Publik / Kampus / Asrama',x:100,y:180,w:300,h:220},
 ],
-links:[['iforte','swForte','fo'],['swForte','swNoc','fo'],['swNoc','swSrv','fo'],['swSrv','rPu','fo'],['rPu','rIctel','fo'],['rIctel','olt','fo'],['olt','ontK','fo'],['ontK','swR','lan'],['swR','apA','lan'],['swR','apP','lan']]},
+nodes:[
+{id:'iforte',icon:'internet',label:'IForte / ISP',sub:'uplink 500M',x:70,y:70},
+{id:'swForte',icon:'switch',label:'Switch Iforte',sub:'ISP',x:210,y:70,db:'Switch Iforte'},
+{id:'swPu',icon:'switch',label:'Switch ICTel PU',sub:'area PU',x:370,y:70,db:'Switch ICTel PU'},
+{id:'rPu',icon:'router',label:'Router PU',sub:'BGP + IP publik',x:520,y:70,db:'Router PU'},
+{id:'rIctel',icon:'router',label:'Router Ictel',sub:'VLAN 31-40',x:670,y:70,db:'Router Ictel'},
+{id:'swCore',icon:'switch',label:'SW Ictel Core',sub:'server ICTel',x:690,y:230,db:'SW Ictel Core'},
+{id:'olt',icon:'olt',label:'Gepon / OLT',sub:'area ICTel',x:520,y:230,db:'GPON / OLT'},
+{id:'ontK',icon:'ont',label:'ONT Kampus',sub:'publik',x:350,y:230,db:'ONT Kampus'},
+{id:'swR',icon:'swpoe',label:'SW Ruijie PoE',sub:'ke AP',x:180,y:230,db:'SW Ruijie PoE'},
+{id:'apA',icon:'ap',label:'AP A4.1',sub:'flapping',x:180,y:350,db:'AP A4.1'},
+{id:'apP',icon:'ap',label:'AP Pavilion 1',sub:'asrama',x:350,y:350,db:'AP Pavilion 1'},
+],
+links:[['iforte','swForte','fo'],['swForte','swPu','fo'],['swPu','rPu','fo'],['rPu','rIctel','fo'],['rIctel','swCore','fo'],['swCore','olt','fo'],['olt','ontK','fo'],['ontK','swR','lan'],['swR','apA','lan'],['swR','apP','lan']]},
 kij:{label:'ICTEL KIJ',vb:'0 0 900 300',
 nodes:[
 {id:'isp',icon:'internet',label:'ISP',sub:'uplink KIJ',x:90,y:150},
@@ -408,6 +421,7 @@ function drawTopo(){
 const svg=document.getElementById('topoSvg');const W=svg.clientWidth||900;
 svg.setAttribute('viewBox',LAYERS[curLayer].vb);
 svg.innerHTML='';
+(LAYERS[curLayer].areas||[]).forEach(a=>{const r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x',a.x);r.setAttribute('y',a.y);r.setAttribute('width',a.w);r.setAttribute('height',a.h);r.setAttribute('rx',16);r.setAttribute('fill','rgba(255,255,255,.45)');r.setAttribute('stroke','#0284c7');r.setAttribute('stroke-width','1.6');r.setAttribute('stroke-dasharray','8 5');svg.appendChild(r);const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',a.x+14);t.setAttribute('y',a.y+18);t.setAttribute('font-size','11');t.setAttribute('font-weight','800');t.setAttribute('fill','#0369a1');t.textContent=a.label;svg.appendChild(t);});
 LINKS.forEach(([a,b,med])=>{const A=topoNode(a),B=topoNode(b);if(!A||!B)return;const bad=topoSt(B)==='bad';const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);l.setAttribute('stroke',bad?'#f87171':(med==='fo'?'#fb923c':'#38bdf8'));l.setAttribute('stroke-width',bad?'3':'3');if(bad)l.setAttribute('stroke-dasharray','7 5');svg.appendChild(l);});
 TOPO.forEach(n=>{
 const st=topoSt(n);
