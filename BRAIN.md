@@ -13,7 +13,8 @@ Live file: `index.html` (alias `netmon-dummy.html`), single-file, Chart.js via C
 - Diagram statis archify: `archify-output/topologi-netmon.html` (9/9 showcase pass, spec sha `2def28…`).
 
 ## 3. Fitur dummy v1 (jangan dihapus tanpa izin user)
-1. Sidebar PILIH PERANGKAT ikut topologi (grup Manage ICTel PU: Router PU, Router Ictel, SW Ictel NOC, GPON/OLT, ONT Kampus, SW Ruijie PoE, AP A4.1, AP Pavilion 1; grup ICTEL KIJ: Switch ICTel, OLT KIJ, ONT-01, ONT-02) + dot status live. Klik node topologi = pilih perangkat di sidebar. Status sinkron dua arah (flap di dashboard → warna node berubah).
+1. Sidebar PILIH PERANGKAT ikut topologi (grup Manage ICTel PU: Switch Iforte, Switch ICTel PU, Router PU, Router Ictel, SW Ictel Core, GPON/OLT, ONT Kampus, SW Ruijie PoE, AP A4.1, AP Pavilion 1; grup ICTEL KIJ: Switch ICTel, OLT KIJ, ONT-01, ONT-02) + dot status live. Klik node topologi = pilih perangkat di sidebar. Status sinkron dua arah.
+2. Topologi PU dalam 3 kotak AREA garis putus-putus: Area Server ICTel (Switch Iforte, SW Ictel Core, Gepon/OLT), Area Server President University (Router PU, Router Ictel, Switch ICTel PU), Area Publik/Kampus/Asrama (ONT, Switch PoE, AP). Rantai: IForte→SW Iforte→SW ICTel PU→Router PU→Router ICTel→SW Core→Gepon→ONT→SW PoE→AP.
 2. Kartu DL/UL/latency/loss + grafik realtime 1 detik.
 3. Layer 1 copper TDR: OPEN/SHORT + estimasi jarak fault + PoE + speed.
 4. Layer 1 SFP DDM: TX/RX dBm, redaman = TX−RX, temp/volt/bias, LOS alarm.
