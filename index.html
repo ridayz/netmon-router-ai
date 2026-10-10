@@ -415,7 +415,7 @@ nodes:[
 links:[['isp','swK','fo'],['swK','oltK','fo'],['oltK','ont1','fo'],['oltK','ont2','fo'],['ont1','ten1','lan'],['ont2','ten2','lan']]}};
 let curLayer='pu';
 let LAYERS=JSON.parse(JSON.stringify(DEFAULT_LAYERS));
-try{const sv=JSON.parse(localStorage.getItem('netmon-topo-v1')||'null');if(sv&&sv.layers&&sv.layers.pu&&sv.layers.kij){LAYERS=sv.layers;if(LAYERS.pu.label==='Manage ICTel PU')LAYERS.pu.label='Manage President University';if(sv.cur&&LAYERS[sv.cur])curLayer=sv.cur;setTimeout(()=>{const st=document.getElementById('saveStat');if(st)st.textContent='Projek dimuat (tersimpan '+(sv.at||'?')+')';},300);}}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem('netmon-topo-v1')||'null');if(sv&&sv.layers&&sv.layers.pu&&sv.layers.kij){LAYERS=sv.layers;if(LAYERS.pu.label==='Manage ICTel PU')LAYERS.pu.label='Manage President University';if(sv.cur&&LAYERS[sv.cur])curLayer=sv.cur;Object.keys(LAYERS).forEach(lk=>{(LAYERS[lk].areas=LAYERS[lk].areas||[]).forEach((a,i)=>{if(!a.id)a.id='a-'+lk+'-'+i;});});setTimeout(()=>{const st=document.getElementById('saveStat');if(st)st.textContent='Projek dimuat (tersimpan '+(sv.at||'?')+')';},300);}}catch(e){}
 let TOPO=LAYERS[curLayer].nodes;
 let LINKS=LAYERS[curLayer].links;
 const TOPO_HOME={};for(const l in DEFAULT_LAYERS){TOPO_HOME[l]={};DEFAULT_LAYERS[l].nodes.forEach(n=>{TOPO_HOME[l][n.id]={x:n.x,y:n.y};});}
@@ -484,7 +484,7 @@ document.body.appendChild(m);setTimeout(()=>document.addEventListener('click',()
 function editTopoText(id){const n=topoNode(id);if(!n)return;document.getElementById('tmenu')?.remove();const nl=prompt('Nama perangkat:',n.label);if(nl===null)return;const ns=prompt('Sub-teks (cth: IP / VLAN):',n.sub||'');if(ns===null)return;n.label=nl||n.label;n.sub=ns;drawTopo();saveTopo();log('> teks node diubah: '+n.label);}
 function setTopoFont(id,s){const n=topoNode(id);if(!n)return;n.fs=s;document.getElementById('tmenu')?.remove();drawTopo();saveTopo();}
 function topoSvgPos(ev){const svg=document.getElementById('topoSvg');const r=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;return {x:Math.round((ev.clientX-r.left)*vb.width/r.width),y:Math.round((ev.clientY-r.top)*vb.height/r.height)};}
-function areaAt(l,x,y){const as=(LAYERS[l].areas||[]);for(let i=as.length-1;i>=0;i--){const a=as[i];if(x>=a.x&&x<=a.x+a.w&&y>=a.y&&y<=a.y+a.h)return a;}return null;}
+function areaAt(l,x,y){const as=(LAYERS[l].areas||[]);for(let i=as.length-1;i>=0;i--){const a=as[i];if(!a.id)a.id='a-'+l+'-'+i;if(x>=a.x&&x<=a.x+a.w&&y>=a.y&&y<=a.y+a.h)return a;}return null;}
 function topoCanvasMenu(ev){
 const p=topoSvgPos(ev);const a=areaAt(curLayer,p.x,p.y);
 document.getElementById('tmenu')?.remove();
