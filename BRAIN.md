@@ -5,7 +5,7 @@
 ## 1. Apa ini
 Network Monitoring + Router AI — dashboard monitoring perangkat jaringan + AI diagnosa.
 Status: **komersil v2** (topologi dirombak total 2026-10-12/13, branch `commercial-topology` merged ke main `005d74c`).
-Repo: `ridayz/netmon-router-ai` (public). Live file: `index.html` (alias `netmon-dummy.html`), single-file, Chart.js via CDN.
+Repo: `ridayz/netmon-router-ai` (public). Live file: `index.html` (single-file, Chart.js via CDN). File duplikat `netmon-dummy.html` + mock `preview-*.html` sudah dihapus 2026-10-16 biar tidak membingungkan (satu-satunya UI = `index.html`).
 Backend: `collector/` (Node :8932, satu repo via git subtree). State topologi: `data/topo.json` (+ backup `.bak` otomatis).
 Launcher: `start-netmon.bat` (collector + browser sekali dobel-klik, tanpa scheduled task).
 
@@ -61,7 +61,7 @@ Launcher: `start-netmon.bat` (collector + browser sekali dobel-klik, tanpa sched
 
 ## 6. Perintah cepat
 - Jalanin: dobel-klik `start-netmon.bat` (collector :8932 + browser). Cek `http://localhost:8932/health` dulu kalau ragu.
-- Edit kode: `index.html` (UI) / `collector/*.js` (backend) → copy `index.html` → `netmon-dummy.html` + `../netmon-dummy.html` → commit → push `origin main`.
+- Edit kode: `index.html` (UI) / `collector/*.js` (backend) → commit → push `origin main`. (Satu-satunya UI = `index.html`; jangan bikin alias/duplikat lagi.)
 - Verifikasi cepat: node --check tiap JS; ekstrak `<script>` → `node --check`; divdiff (`<div` vs `</div>`) = 0; probe headless mkprobe (action file).
 - Tambah fitur topologi: baca dulu `docs/superpowers/plans/2026-10-12-netmon-commercial-topology.md` + spec-nya.
 - Diagram archify: edit `archify-output/topologi-netmon.architecture.json` → `validate --quality showcase` → `deliver`.
